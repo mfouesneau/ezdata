@@ -80,17 +80,24 @@ examples below). Both also have a direct access to a `Plotter` attribute
 * Make a single plot of 'RA', 'DEC' on which each region 'BRK' is represented by
   a different color (colormap or other) and different marker.
 
+<img src="http://mfouesneau.github.io/docs/ezdata/ex1.png" width="50%">
+
 ```python
 
     >>> p = t.Plotter.groupby('BRK', markers='<^>v.oxs', colors='parula')
     >>> p.plot('CRA', 'CDEC', 'o')
     >>> import pylab as plt
-    >>> plt.legend(loc='best', numpoints=1, frameon=False)
+    >>> plt.legend(loc='best', numpoints=1)
+    >>> plt.xlim(plt.xlim()[::-1])
+    >>> plt.xlabel('RA')
+    >>> plt.ylabel('DEC')
 ```
 
 * make a more complex plot: plot the histogram distribution of 'AV' per region
   given by 'BRK', with given color scheme per region value and individual plots
   with shared axis
+
+<img src="http://mfouesneau.github.io/docs/ezdata/ex2.png" width="50%">
 
 ```python
 
@@ -99,4 +106,5 @@ examples below). Both also have a direct access to a `Plotter` attribute
 	    sharey=True).hist('AV', 
 	    bins=np.linspace(t.AV.min(), 
 	    t.AV.max(), 20), normed=True)
+    >>> for ax in plt.gcf().axes[:-3]: ax.set_xlabel('AV')
 ```
