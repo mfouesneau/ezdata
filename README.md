@@ -106,5 +106,5 @@ examples below). Both also have a direct access to a `Plotter` attribute
 	    sharey=True).hist('AV', 
 	    bins=np.linspace(t.AV.min(), 
 	    t.AV.max(), 20), normed=True)
-    >>> for ax in plt.gcf().axes[:-3]: ax.set_xlabel('AV')
+    >>> for ax in plt.gcf().axes[-3:]: ax.set_xlabel('AV')
 ```
