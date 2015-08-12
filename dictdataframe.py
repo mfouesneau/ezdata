@@ -4,7 +4,7 @@ DictDataFrame, a simplistic column based dataframe
 The :class:`DataFrame` container allows easier manipulations of the data but is
 basically a wrapper of many existing function around a dictionary object.
 
-.. notes::
+.. note::
 
     * tested with python 2.7, & 3.4
     * tested compatible with pandas (not required)

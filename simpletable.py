@@ -1038,6 +1038,7 @@ class AstroHelpers(object):
     @elementwise
     def deg2dms(val, delim=':'):
         """ Convert degrees into hex coordinates
+
         Parameters
         ----------
         deg: float
@@ -1091,6 +1092,7 @@ class AstroHelpers(object):
     @elementwise
     def dms2deg(_str, delim=':'):
         """ Convert hex coordinates into degrees
+
         Parameters
         ----------
         str: string or sequence
@@ -1120,11 +1122,15 @@ class AstroHelpers(object):
         Celestial coordinates (RA, Dec) should be given in equinox J2000
         unless the b1950 is True.
 
-        select From           To         |   select    From          To
-        ----------------------------------------------------------------------
-        1      RA-Dec (2000)  Galactic   |     4       Ecliptic      RA-Dec
-        2      Galactic       RA-DEC     |     5       Ecliptic      Galactic
-        3      RA-Dec         Ecliptic   |     6       Galactic      Ecliptic
+        +-------+--------------+------------+----------+----------+-----------+
+        |select | From         | To         |   select |   From   |  To       |
+        +-------+--------------+------------+----------+----------+-----------+
+        |1      |RA-Dec (2000) | Galactic   |     4    | Ecliptic |  RA-Dec   |
+        +-------+--------------+------------+----------+----------+-----------+
+        |2      |Galactic      | RA-DEC     |     5    | Ecliptic |  Galactic |
+        +-------+--------------+------------+----------+----------+-----------+
+        |3      |RA-Dec        | Ecliptic   |     6    | Galactic |  Ecliptic |
+        +-------+--------------+------------+----------+----------+-----------+
 
         Parameters
         ----------
@@ -1151,13 +1157,14 @@ class AstroHelpers(object):
             Output Latitude in DEGREES
 
 
-        REVISION HISTORY:
-        Written W. Landsman,  February 1987
-        Adapted from Fortran by Daryl Yentis NRL
-        Converted to IDL V5.0   W. Landsman   September 1997
-        Made J2000 the default, added /FK4 keyword  W. Landsman December 1998
-        Add option to specify SELECT as a keyword W. Landsman March 2003
-        Converted from IDL to numerical Python: Erin Sheldon, NYU, 2008-07-02
+        .. note::
+
+            Written W. Landsman,  February 1987
+            Adapted from Fortran by Daryl Yentis NRL
+            Converted to IDL V5.0   W. Landsman   September 1997
+            Made J2000 the default, added /FK4 keyword  W. Landsman December 1998
+            Add option to specify SELECT as a keyword W. Landsman March 2003
+            Converted from IDL to numerical Python: Erin Sheldon, NYU, 2008-07-02
         """
 
         # Make a copy as an array. ndmin=1 to avoid messed up scalar arrays
@@ -1904,10 +1911,12 @@ class SimpleTable(object):
             yield l
 
     def items(self):
+        """ Iterator on the (key, value) pairs """
         for k in self.colnames:
             yield k, self[k]
 
     def info(self):
+        """ prints information on the table """
         s = "\nTable: {name:s}\n       nrows={s.nrows:d}, ncols={s.ncols:d}, mem={size:s}"
         s = s.format(name=self.header.get('NAME', 'Noname'), s=self,
                      size=pretty_size_print(self.nbytes))
@@ -2388,8 +2397,8 @@ class SimpleTable(object):
     def stats(self, fn=None, fields=None, fill=None):
         """ Make statistics on columns of a table
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         fn: callable or sequence of callables
             functions to apply to each column
             default: (np.mean, np.std, np.nanmin, np.nanmax)
@@ -2602,6 +2611,7 @@ class AstroTable(SimpleTable):
 
     def zoneSearch(self, ramin, ramax, decmin, decmax, outtype=0):
         """ Perform a zone search on a table, i.e., a rectangular selection
+
         Parameters
         ----------
         ramin: float

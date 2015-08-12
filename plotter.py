@@ -26,7 +26,7 @@ Multiple groups can be done as well. (Caution, the `facet` option is not robust)
     >> g = p.groupby('BRK', facet=True, sharex=True, sharey=True).groupby('FLD')
     >> g.plot('CRA', 'CDEC', 'o')
 
-.. notes::
+.. note::
 
     * tested with python 2.7, & 3.4
     * tested compatible with pandas (not required)
@@ -105,13 +105,13 @@ class Group(object):
     instance to generate multiple plots on the same axes or even facet plot
     (one per group).
 
-    Example
-    -------
-    >> g = Plotter(df).groupby('class')
-    >> g.set_options(facet=True, ncols=2, projection='aitoff')
-    which is equivelent to
-    >> g = Plotter(df).groupby('class', facet=True, ncols=2, projection='aitoff')
-    >> g.plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
+    .. code-block:: python
+
+        >> g = Plotter(df).groupby('class')
+        >> g.set_options(facet=True, ncols=2, projection='aitoff')
+        # which is equivalent to
+        >> g = Plotter(df).groupby('class', facet=True, ncols=2, projection='aitoff')
+        >> g.plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
 
     Attributes
     ----------
@@ -167,7 +167,9 @@ class Group(object):
         axes: sequence
             sequence of the axes instance from the subplots
 
-        see also: :func:`set_options`
+        .. see also::
+
+            :func:`set_options`
         """
         axes = []
         n = len(self)
@@ -201,6 +203,7 @@ class Group(object):
 
     def set_options(self, **kwargs):
         """ Set some options
+
         Parameters
         ----------
         title: str
@@ -266,8 +269,8 @@ class Group(object):
     def groupby(self, key, select=None, labels=None, **kwargs):
         """ Make individual plots per group
 
-        Parameter
-        --------
+        Parameters
+        ----------
         key: str
             key on which building groups
 
@@ -362,7 +365,7 @@ class Group(object):
             Each element in this dictionary is expected to be a sequence and one
             element of each will be used per call. It will use
             :func:`itertools.cycle`. (None elements are filtered)
-                cyclenames = 'linestyles', 'colors', 'markers'
+            cyclenames = 'linestyles', 'colors', 'markers'
         kw: dict
             other keywords (have priority on `cyclekw`)
 
@@ -397,9 +400,10 @@ class Group(object):
 
     @staticmethod
     def looper_facet_method(lst, methodname, axes, cyclekw={}, **kw):
-        """ calls a method on many instance of sequence of objects but also imposes
-        ax as keyword argument. This method will also test if there is no data to
-        plot.
+        """
+        calls a method on many instance of sequence of objects but also imposes
+        ax as keyword argument. This method will also test if there is no data
+        to plot.
 
         Parameters
         ----------
@@ -414,7 +418,7 @@ class Group(object):
             Each element in this dictionary is expected to be a sequence and one
             element of each will be used per call. It will use
             :func:`itertools.cycle`. (None elements are filtered)
-                cyclenames = 'linestyles', 'colors', 'markers'
+            cyclenames = 'linestyles', 'colors', 'markers'
         kw: dict
             other keywords (have priority on `cyclekw`)
 
@@ -422,7 +426,6 @@ class Group(object):
         -------
         deco: callable
             mapper function
-
         """
         cyclenames = 'linestyles', 'colors', 'markers'
 
@@ -480,9 +483,9 @@ class Plotter(object):
     arguments can be named columns from the data (not necessary) and each method handles a
     `ax` keyword to specify a Axes instance to use (default using :func:`plt.gca`)
 
-    Example
-    -------
-    >> Plotter(df).groupby('class').plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
+    .. code-block:: python
+
+        Plotter(df).groupby('class').plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
 
     Attributes
     ----------
@@ -651,8 +654,8 @@ class Plotter(object):
     def groupby(self, key, select=None, labels=None, **kwargs):
         """ Make individual plots per group
 
-        Parameter
-        --------
+        Parameters
+        ----------
         key: str
             key on which building groups
 
@@ -820,6 +823,66 @@ def create_common_cbar(vmin=0, vmax=1, box=None, **kwargs):
     ax = plt.gcf().add_axes(box)
     cb = mpl.colorbar.ColorbarBase(ax, norm=norm, **kw)
     return cb
+
+
+def create_common_legend(labels, colors, markers='s', mec=None,
+                         linestyles='None', linewidths=None, fig=None,
+                         **kwargs):
+    """ Create a legend from the symbols without the actual plot
+
+    Parameters
+    ----------
+    labels: seq
+        sequence of label strings
+    colors: seq or Colormap
+        sequence of colors or Colormap instance from which deriving a
+        sequence of colors to encode each group
+        if Colormap instance, a cmap attribute will be generated after a
+        plot and will refer to the updated instance
+    markers: seq
+        sequence of markers (will cycle through)
+        default is `s`, i.e., a square
+    mec: seq
+        marker edge colors
+    linestyles: seq
+        sequence of linestyles (will cycle through)
+    linewidths: seq
+        sequence of linewidths (will cycle through)
+    fig: plt.Figure
+        figure to add a legend (default: `plt.gcf()`)
+    kwargs: dict
+        any other keyword will go to :func:`plt.legend`
+
+    Returns
+    -------
+    lgd: plt.Legend instance
+        the newly created legend
+    """
+    from matplotlib.lines import Line2D
+    from itertools import cycle
+
+    if fig is None:
+        fig = plt.gcf()
+
+    defaults = dict(numpoints=1, frameon=False)
+    defaults.update(kwargs)
+
+    if not hasattr(mec, '__iter__'):
+        mec = [mec]
+    if not hasattr(linewidths, '__iter__'):
+        linewidths = [linewidths]
+
+    lines = []
+    for lbl, color, m, ls, me, lw in zip(labels, colors, cycle(markers),
+                                         cycle(linestyles), cycle(mec),
+                                         cycle(linewidths)):
+        l = Line2D(range(2), range(2), marker=m, mec=me, linestyle=ls,
+                   color=color, lw=lw)
+        lines.append(l)
+
+    lgd = fig.lend(lines, labels, **defaults)
+    plt.draw_if_interactive()
+    return lgd
 
 
 def colorify(data, vmin=None, vmax=None, cmap=plt.cm.Spectral):

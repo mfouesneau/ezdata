@@ -8,6 +8,8 @@
 
 :author: Morgan Fouesneau
 
+Documentation and API: [link](http://mfouesneau.github.io/docs/ezdata/)
+
 ## Why?
 
 I always found myself writing snippets around `numpy`, `matplotlib`, pandas and

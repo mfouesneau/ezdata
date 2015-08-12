@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 
+ezdata_doc/
+
 # C extensions
 *.so
 
