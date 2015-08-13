@@ -51,7 +51,7 @@ import numpy as np
 import itertools
 
 
-__all__ = ['Group', 'Plotter', 'create_common_cbar', 'colorify', 'evalexpr']
+__all__ = ['Group', 'Plotter', 'create_common_cbar', 'colorify', 'evalexpr', 'create_common_legend']
 
 
 def get_doc_from(name, obj=plt):
@@ -880,7 +880,7 @@ def create_common_legend(labels, colors, markers='s', mec=None,
                    color=color, lw=lw)
         lines.append(l)
 
-    lgd = fig.lend(lines, labels, **defaults)
+    lgd = fig.legend(lines, labels, **defaults)
     plt.draw_if_interactive()
     return lgd
 
