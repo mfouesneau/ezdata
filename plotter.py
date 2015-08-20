@@ -242,6 +242,7 @@ class Group(object):
         labels = kwargs.pop('labels', None)
         sharex = kwargs.pop('sharex', None)
         sharey = kwargs.pop('sharey', None)
+        allow_expressions = kwargs.pop('allow_expressions', None)
         if sharex is not None:
             self.sharex = sharex
         if sharey is not None:
@@ -263,6 +264,9 @@ class Group(object):
         if labels is not None:
             for k, v in zip(self.seq, itertools.cycle(labels)):
                 k.label = v
+        if allow_expressions is not None:
+            for k in self.seq:
+                k.allow_expressions = allow_expressions
         self.kwargs.update(kwargs)
         return self
 
@@ -557,6 +561,29 @@ class Plotter(object):
         plt.subplot(*args, **kwargs)
         return self
 
+    def colorify(self, key, vmin=None, vmax=None, cmap=None):
+        """ Associate a color map to a quantity vector
+
+        Parameters
+        ----------
+        data: sequence
+            values to encode
+        vmin: float
+            minimum value
+        vmax: float
+            maximum value
+        cmap: Colormap instance
+            colormap to use
+
+        Returns
+        -------
+        colors: sequence or array
+            one color per input data
+        cmap: Colormap
+            data normalized colormap instance
+        """
+        return colorify(self.data.evalexpr(key), vmin, vmax, cmap)
+
     @get_doc_from('scatter')
     def scatter(self, x, y, c='k', s=20, *args, **kwargs):
         _x = self._value_from_data(x)
@@ -723,6 +750,117 @@ class Plotter(object):
         else:
             raise RuntimeError('Cannot add {0} type objects to {1} instance'.format(other.__class__.__name__,
                                self.__class__.__name__))
+
+    def pivot_plot(self, key1, key2, plotfn, plotkw={}, **kwargs):
+        """ generate a multiple plots ordered according to 2 keys
+
+        Parameters
+        ----------
+        key1: str
+            key along the x-axis
+        key2: str
+            key along the y-axis
+        plotfn: callable
+            the plotting function
+            This function signature must take a dataset and manage an `ax` keyword
+            > plotfn(data, ax=ax, **plotkw)
+        plotkw: dict
+            optional keywords to pass to the plotting function
+        kwargs: dict
+            forwarded to :func:`plt.subplots`
+
+        Returns
+        -------
+        axes: sequence
+            list of all axes used in the plot
+        """
+
+        from . import sandbox
+        grp = sandbox.aggregate(self.data, lambda x: x, (key1, key2))
+
+        sx = {k[0] for k in grp}
+        sx = {k:e for e, k in enumerate(sx)}
+        sy = {k[1] for k in grp}
+        sy = {k:e for e, k in enumerate(sy)}
+        #print(sx, sy)
+
+        defaults = dict(sharex=True, sharey=True)
+        defaults.update(**kwargs)
+
+        fig, axes = plt.subplots(len(sy), len(sx), **defaults)
+        _axes = np.rot90(axes, 3)
+        for (idx1, idx2, data) in grp:
+            e1, e2 = sx[idx1], sy[idx2]
+            plotfn(data, ax=_axes[e1, e2], **plotkw)
+            _axes[e1,e2].set_xlabel('')
+            _axes[e1,e2].set_ylabel('')
+
+        for ax in axes.ravel():
+            plt.setp(ax.get_yticklines() + ax.get_xticklines(), visible=False)
+            plt.setp(ax.get_yticklabels() + ax.get_xticklabels(), visible=False)
+
+        return axes
+
+    def aggregate(self, func, keys, args=(), kwargs={}):
+        """ Apply func on groups within the data
+
+        Parameters
+        ----------
+        func: callable
+            function to apply
+        keys: sequence(str)
+            sequence of keys defining the groups
+        args: tuple
+            optional arguments to func (will be given at the end)
+        kwargs: dict
+            optional keywords to func
+
+        Returns
+        -------
+        seq: sequence
+            flattened sequence of keys and value
+            (key1, key2, ... keyn, {})
+        """
+        pv = [(k, list(v)) for k, v in self.multigroupby(self.d, *keys)]
+
+        def _aggregate(a, b=()):
+            data = []
+            for k, v in a:
+                if type(v) in (list, tuple,):
+                    data.append(_aggregate(v, b=(k,)))
+                else:
+                    data.append(b + (k, func(v)))
+            return data
+
+        return list(itertools.chain(*_aggregate(pv)))
+
+    def multigroupby(self, *args):
+        """
+        Generate nested df based on multiple grouping keys
+
+        Parameters
+        ----------
+        args: str or sequence
+            column(s) to index the DF
+        """
+        if len(args) <= 0:
+            yield self.data
+        elif len(args) > 1:
+            nested = True
+        else:
+            nested = False
+
+        val = self.data[args[0]]
+        ind = sorted(zip(val, range(len(val))), key=lambda x:x[0])
+
+        for k, grp in itertools.groupby(ind, lambda x:x[0]):
+            index = [v[1] for v in grp]
+            d = self.data.ary.__class__({a: np.array([b[i] for i in index]) for
+                                         a, b in self.data.items()})
+            if nested:
+                yield k, self.multigroupby(d, *args[1:])
+            else:
+                yield k, d
 
 
 def _intercept_empty_plot(*args, **kwargs):
