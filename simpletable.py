@@ -2357,7 +2357,7 @@ class SimpleTable(object):
         if condition in [True, 'True', None]:
             ind = None
         else:
-            ind = self.where(condition, condvars, **kwargs)
+            ind, = self.where(condition, condvars, **kwargs)
 
         tab = self.select(fields, indices=ind)
 
