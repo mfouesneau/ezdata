@@ -1,10 +1,17 @@
 # ezData - A Sandbox for simplistic column based data framework. 
 
-> tested with python 2.7, & 3.4
+> tested with python 2.7, & 3.4, 3.5
 >
-> compatible with pandas (not required)
+> compatible with many existing dataframes: e.g. pandas 
 >
 > requirements: numpy, matplotlib (for plotting only)
+>                conversion to other formats require the appropriate library.
+
+.. notes::
+
+    * tested with python 2.7, & 3.4
+    * requirements: numpy
+    * conversion to other formats require the appropriate library.
 
 :author: Morgan Fouesneau
 
@@ -21,6 +28,11 @@ scatter plot with these specific markers and color coded by another column_.
 
 _I was basically tired of all the packages doing fancy things and not allowing
 basics or requiring a lot of dependencies._
+
+In particular this package allows easy conversions to many common dataframe
+containers: `dict`, `numpy.recarray`, `pandas.DataFrame`, `dask.DataFrame`,
+`astropy.Table`, `xarray.Dataset`, `vaex.DataSetArrays`.
+
 
 ## What is this package?
 
@@ -56,6 +68,9 @@ slicing, shape, dtypes on top of which they implement functions such as:
 `sortby`, `groupby`, `where`, and evaluation of expressions as keys. (see
 examples below). Both also have a direct access to a `Plotter` attribute
 
+These data classes allows easy conversions to many common dataframe
+containers: `numpy.recarray`, `pandas.DataFrame`, `dask.DataFrame`,
+`astropy.Table`, `xarray.Dataset`, `vaex.DataSetArrays`.
 
 ## Examples
 
@@ -77,6 +92,15 @@ examples below). Both also have a direct access to a `Plotter` attribute
     >>> s.write('newtable.fits')
     # or 
     >>> s.write('newtable.hd5')
+```
+
+* Convert to other dataframe structures
+
+```python
+    >>> t = SimpleTable('path/mytable.csv')
+    >>> t.to_pandas()
+    >>> t.to_dask(npartitions=5)
+    >>> d = DictDataFrame(t)
 ```
 
 * Make a single plot of 'RA', 'DEC' on which each region 'BRK' is represented by

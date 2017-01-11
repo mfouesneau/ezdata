@@ -2,13 +2,15 @@
 DictDataFrame, a simplistic column based dataframe
 
 The :class:`DataFrame` container allows easier manipulations of the data but is
-basically a wrapper of many existing function around a dictionary object.
+basically deriving dictionary objects. In particular it allows easy conversions
+to many common dataframe containers: `numpy.recarray`, `pandas.DataFrame`,
+`dask.DataFrame`, `astropy.Table`, `xarray.Dataset`, `vaex.DataSetArrays`.
 
-.. note::
+.. notes::
 
     * tested with python 2.7, & 3.4
-    * tested compatible with pandas (not required)
     * requirements: numpy
+    * conversion to other formats require the appropriate library.
 
 :author: Morgan Fouesneau
 '''
@@ -110,6 +112,160 @@ class DictDataFrame(dict):
         """ Returns the number of rows """
         return len(self[list(self.keys())[0]])
 
+    def to_records(self, **kwargs):
+        """ Construct a numpy record array from this dataframe """
+        return _convert_dict_to_structured_ndarray(self)
+
+    def to_pandas(self, **kwargs):
+        """ Construct a pandas dataframe
+
+        Parameters
+        ----------
+        data : ndarray (structured dtype), list of tuples, dict, or DataFrame
+        index : string, list of fields, array-like
+            Field of array to use as the index, alternately a specific set of
+            input labels to use
+        exclude : sequence, default None
+            Columns or fields to exclude
+        columns : sequence, default None
+            Column names to use. If the passed data do not have names
+            associated with them, this argument provides names for the
+            columns. Otherwise this argument indicates the order of the columns
+            in the result (any names not found in the data will become all-NA
+            columns)
+        coerce_float : boolean, default False
+            Attempt to convert values to non-string, non-numeric objects (like
+            decimal.Decimal) to floating point, useful for SQL result sets
+
+        Returns
+        -------
+        df : DataFrame
+        """
+        try:
+            from pandas import DataFrame
+            return DataFrame.from_dict(self, **kwargs)
+        except ImportError as e:
+            print("Pandas import error")
+            raise e
+
+    def to_xarray(self, **kwargs):
+        """ Construct an xarray dataset
+
+        Each column will be converted into an independent variable in the
+        Dataset. If the dataframe's index is a MultiIndex, it will be expanded
+        into a tensor product of one-dimensional indices (filling in missing
+        values with NaN). This method will produce a Dataset very similar to
+        that on which the 'to_dataframe' method was called, except with
+        possibly redundant dimensions (since all dataset variables will have
+        the same dimensionality).
+        """
+        try:
+            from xray import Dataset
+            return Dataset.from_dataframe(self.to_pandas())
+        except ImportError as e:
+            print("xray import error")
+            raise e
+
+    def to_vaex(self, **kwargs):
+        """
+        Create an in memory Vaex dataset
+
+        Parameters
+        ----------
+        name: str
+            unique for the dataset
+
+        Returns
+        -------
+        df: vaex.DataSetArrays
+            vaex dataset
+        """
+        try:
+            import vaex
+            return vaex.from_pandas(self.to_pandas(), **kwargs)
+        except ImportError as e:
+            print("Vaex import error")
+            raise e
+
+    def to_dask(self, **kwargs):
+        """ Construct a Dask DataFrame
+
+        This splits an in-memory Pandas dataframe into several parts and constructs
+        a dask.dataframe from those parts on which Dask.dataframe can operate in
+        parallel.
+
+        Note that, despite parallelism, Dask.dataframe may not always be faster
+        than Pandas.  We recommend that you stay with Pandas for as long as
+        possible before switching to Dask.dataframe.
+
+        Parameters
+        ----------
+        npartitions : int, optional
+            The number of partitions of the index to create. Note that depending on
+            the size and index of the dataframe, the output may have fewer
+            partitions than requested.
+        chunksize : int, optional
+            The size of the partitions of the index.
+        sort: bool
+            Sort input first to obtain cleanly divided partitions or don't sort and
+            don't get cleanly divided partitions
+        name: string, optional
+            An optional keyname for the dataframe.  Defaults to hashing the input
+
+        Returns
+        -------
+        dask.DataFrame or dask.Series
+            A dask DataFrame/Series partitioned along the index
+        """
+        try:
+            from dask import dataframe
+            return dataframe.from_pandas(self.to_pandas(), **kwargs)
+        except ImportError as e:
+            print("Dask import error")
+            raise e
+
+    def to_astropy_table(self, **kwargs):
+        """
+        A class to represent tables of heterogeneous data.
+
+        `astropy.table.Table` provides a class for heterogeneous tabular data,
+        making use of a `numpy` structured array internally to store the data
+        values.  A key enhancement provided by the `Table` class is the ability
+        to easily modify the structure of the table by adding or removing
+        columns, or adding new rows of data.  In addition table and column
+        metadata are fully supported.
+
+        Parameters
+        ----------
+        masked : bool, optional
+            Specify whether the table is masked.
+        names : list, optional
+            Specify column names
+        dtype : list, optional
+            Specify column data types
+        meta : dict, optional
+            Metadata associated with the table.
+        copy : bool, optional
+            Copy the input data (default=True).
+        rows : numpy ndarray, list of lists, optional
+            Row-oriented data for table instead of ``data`` argument
+        copy_indices : bool, optional
+            Copy any indices in the input data (default=True)
+        **kwargs : dict, optional
+            Additional keyword args when converting table-like object
+
+        Returns
+        -------
+        df: astropy.table.Table
+            dataframe
+        """
+        try:
+            from astropy.table import Table
+            return Table(self.to_records(), **kwargs)
+        except ImportError as e:
+            print("Astropy import error")
+            raise e
+
     @property
     def nrows(self):
         """ Number of rows in the dataset """
@@ -146,7 +302,10 @@ class DictDataFrame(dict):
 
     def __repr__(self):
         txt = 'DataFrame ({0:s})\n'.format(pretty_size_print(self.nbytes))
-        txt += '\n'.join([str((k, v.dtype, v.shape)) for (k,v) in self.items()])
+        try:
+            txt += '\n'.join([str((k, v.dtype, v.shape)) for (k,v) in self.items()])
+        except AttributeError:
+            txt += '\n'.join([str((k, type(v))) for (k,v) in self.items()])
         return txt
 
     @property
@@ -196,13 +355,20 @@ class DictDataFrame(dict):
 
     def iterlines(self):
         """ Iterator on the lines of the dataframe """
-        return self.lines()
+        return self.lines
 
+    @property
     def lines(self):
         """ Iterator on the lines of the dataframe """
         for k in range(self.nrows):
             yield self[k]
 
+    @property
+    def rows(self):
+        """ Iterator on the lines of the dataframe """
+        return self.lines
+
+    @property
     def columns(self):
         """ Iterator on the columns
         refers to :func:`dict.items`
@@ -234,7 +400,7 @@ class DictDataFrame(dict):
         ..note:
             there is no prior check on the variables and names
         """
-        for line in self.lines():
+        for line in self.lines:
             if eval(condition, dict(line), condvars):
                 yield line
 
@@ -386,6 +552,38 @@ class DictDataFrame(dict):
             array of the result
         """
         return evalexpr(self, expr, exprvars=exprvars, dtype=dtype)
+
+
+def _convert_dict_to_structured_ndarray(data):
+    """ convert_dict_to_structured_ndarray
+
+    Parameters
+    ----------
+    data: dictionary like object
+        data structure which provides iteritems and itervalues
+
+    returns
+    -------
+    tab: structured ndarray
+        structured numpy array
+    """
+    newdtype = []
+    for key, dk in iteritems(data):
+        _dk = np.asarray(dk)
+        dtype = _dk.dtype
+        # unknown type is converted to text
+        if dtype.type == np.object_:
+            if len(data) == 0:
+                longest = 0
+            else:
+                longest = len(max(_dk, key=len))
+                _dk = _dk.astype('|%iS' % longest)
+        if _dk.ndim > 1:
+            newdtype.append((str(key), _dk.dtype, (_dk.shape[1],)))
+        else:
+            newdtype.append((str(key), _dk.dtype))
+    tab = np.rec.fromarrays(itervalues(data), dtype=newdtype)
+    return tab
 
 
 def _df_multigroupby(ary, *args):

@@ -60,6 +60,11 @@ except ImportError:
     tables = None
 
 try:
+    import pandas as _pd
+except ImportError:
+    _pd = None
+
+try:
     from .plotter import Plotter
 except ImportError:
     Plotter = None
@@ -533,7 +538,7 @@ def _hdf5_write_data(filename, data, tablename=None, mode='w', append=False,
         comments/description of keywords
 
     .. note::
-        other keywords are forwarded to :func:`tables.openFile`
+        other keywords are forwarded to :func:`tables.open_file`
     """
 
     if hasattr(filename, 'read'):
@@ -541,13 +546,14 @@ def _hdf5_write_data(filename, data, tablename=None, mode='w', append=False,
 
     if append is True:
         mode = 'a'
+    silent = kwargs.pop('silent', False)
 
     if isinstance(filename, tables.File):
         if (filename.mode != mode) & (mode != 'r'):
             raise tables.FileModeError('The file is already opened in a different mode')
         hd5 = filename
     else:
-        hd5 = tables.openFile(filename, mode=mode)
+        hd5 = tables.open_file(filename, mode=mode)
 
     # check table name and path
     tablename = tablename or header.get('NAME', None)
@@ -564,11 +570,12 @@ def _hdf5_write_data(filename, data, tablename=None, mode='w', append=False,
 
     if append:
         try:
-            t = hd5.getNode(where + name)
+            t = hd5.get_node(where + name)
             t.append(data.astype(t.description._v_dtype))
             t.flush()
         except tables.NoSuchNodeError:
-            print(("Warning: Table {0} does not exists.  \n A new table will be created").format(where + name))
+            if not silent:
+                print(("Warning: Table {0} does not exists.  \n A new table will be created").format(where + name))
             append = False
 
     if not append:
@@ -622,16 +629,16 @@ def _hdf5_read_data(filename, tablename=None, silent=False, *args, **kwargs):
     hdr: str
         string that will be be written at the beginning of the file
     """
-    source = tables.openFile(filename, *args, **kwargs)
+    source = tables.open_file(filename, *args, **kwargs)
 
     if tablename is None:
         node = source.listNodes('/')[0]
         tablename = node.name
     else:
         if tablename[0] != '/':
-            node = source.getNode('/' + tablename)
+            node = source.get_node('/' + tablename)
         else:
-            node = source.getNode(tablename)
+            node = source.get_node(tablename)
     if not silent:
         print("\tLoading table: {0}".format(tablename))
 
@@ -802,21 +809,42 @@ def _convert_dict_to_structured_ndarray(data):
         structured numpy array
     """
     newdtype = []
-    for key, dk in iteritems(data):
-        _dk = np.asarray(dk)
-        dtype = _dk.dtype
-        # unknown type is converted to text
-        if dtype.type == np.object_:
-            if len(data) == 0:
-                longest = 0
+    try:
+        for key, dk in iteritems(data):
+            _dk = np.asarray(dk)
+            dtype = _dk.dtype
+            # unknown type is converted to text
+            if dtype.type == np.object_:
+                if len(data) == 0:
+                    longest = 0
+                else:
+                    longest = len(max(_dk, key=len))
+                    _dk = _dk.astype('|%iS' % longest)
+            if _dk.ndim > 1:
+                newdtype.append((str(key), _dk.dtype, (_dk.shape[1],)))
             else:
-                longest = len(max(_dk, key=len))
-                _dk = _dk.astype('|%iS' % longest)
-        if _dk.ndim > 1:
-            newdtype.append((str(key), _dk.dtype, (_dk.shape[1],)))
-        else:
-            newdtype.append((str(key), _dk.dtype))
-    tab = np.rec.fromarrays(itervalues(data), dtype=newdtype)
+                newdtype.append((str(key), _dk.dtype))
+        tab = np.rec.fromarrays(itervalues(data), dtype=newdtype)
+    except AttributeError:  # not a dict
+        # hope it's a tuple ((key, value),) pairs.
+        from itertools import tee
+        d1, d2 = tee(data)
+        for key, dk in d1:
+            _dk = np.asarray(dk)
+            dtype = _dk.dtype
+            # unknown type is converted to text
+            if dtype.type == np.object_:
+                if len(data) == 0:
+                    longest = 0
+                else:
+                    longest = len(max(_dk, key=len))
+                    _dk = _dk.astype('|%iS' % longest)
+            if _dk.ndim > 1:
+                newdtype.append((str(key), _dk.dtype, (_dk.shape[1],)))
+            else:
+                newdtype.append((str(key), _dk.dtype))
+        tab = np.rec.fromarrays((dk for (_, dk) in d2), dtype=newdtype)
+
     return tab
 
 
@@ -1038,7 +1066,6 @@ class AstroHelpers(object):
     @elementwise
     def deg2dms(val, delim=':'):
         """ Convert degrees into hex coordinates
-
         Parameters
         ----------
         deg: float
@@ -1092,7 +1119,6 @@ class AstroHelpers(object):
     @elementwise
     def dms2deg(_str, delim=':'):
         """ Convert hex coordinates into degrees
-
         Parameters
         ----------
         str: string or sequence
@@ -1122,15 +1148,11 @@ class AstroHelpers(object):
         Celestial coordinates (RA, Dec) should be given in equinox J2000
         unless the b1950 is True.
 
-        +-------+--------------+------------+----------+----------+-----------+
-        |select | From         | To         |   select |   From   |  To       |
-        +-------+--------------+------------+----------+----------+-----------+
-        |1      |RA-Dec (2000) | Galactic   |     4    | Ecliptic |  RA-Dec   |
-        +-------+--------------+------------+----------+----------+-----------+
-        |2      |Galactic      | RA-DEC     |     5    | Ecliptic |  Galactic |
-        +-------+--------------+------------+----------+----------+-----------+
-        |3      |RA-Dec        | Ecliptic   |     6    | Galactic |  Ecliptic |
-        +-------+--------------+------------+----------+----------+-----------+
+        select From           To         |   select    From          To
+        ----------------------------------------------------------------------
+        1      RA-Dec (2000)  Galactic   |     4       Ecliptic      RA-Dec
+        2      Galactic       RA-DEC     |     5       Ecliptic      Galactic
+        3      RA-Dec         Ecliptic   |     6       Galactic      Ecliptic
 
         Parameters
         ----------
@@ -1157,14 +1179,13 @@ class AstroHelpers(object):
             Output Latitude in DEGREES
 
 
-        .. note::
-
-            Written W. Landsman,  February 1987
-            Adapted from Fortran by Daryl Yentis NRL
-            Converted to IDL V5.0   W. Landsman   September 1997
-            Made J2000 the default, added /FK4 keyword  W. Landsman December 1998
-            Add option to specify SELECT as a keyword W. Landsman March 2003
-            Converted from IDL to numerical Python: Erin Sheldon, NYU, 2008-07-02
+        REVISION HISTORY:
+        Written W. Landsman,  February 1987
+        Adapted from Fortran by Daryl Yentis NRL
+        Converted to IDL V5.0   W. Landsman   September 1997
+        Made J2000 the default, added /FK4 keyword  W. Landsman December 1998
+        Add option to specify SELECT as a keyword W. Landsman March 2003
+        Converted from IDL to numerical Python: Erin Sheldon, NYU, 2008-07-02
         """
 
         # Make a copy as an array. ndmin=1 to avoid messed up scalar arrays
@@ -1358,7 +1379,7 @@ class SimpleTable(object):
         self._units = kwargs.get('units', {})
         self._desc = kwargs.get('desc', {})
 
-        if (type(fname) == dict) or (dtype in [dict, 'dict']):
+        if (isinstance(fname, dict)) or (dtype in [dict, 'dict']):
             self.header = fname.pop('header', {})
             self.data = _convert_dict_to_structured_ndarray(fname)
         elif (type(fname) in basestring) or (dtype is not None):
@@ -1605,6 +1626,160 @@ class SimpleTable(object):
                              aliases=self._aliases, **kwargs)
         else:
             raise Exception('Format {0:s} not handled'.format(extension))
+
+    def to_records(self, **kwargs):
+        """ Construct a numpy record array from this dataframe """
+        return self.data
+
+    def to_pandas(self, **kwargs):
+        """ Construct a pandas dataframe
+
+        Parameters
+        ----------
+        data : ndarray (structured dtype), list of tuples, dict, or DataFrame
+        index : string, list of fields, array-like
+            Field of array to use as the index, alternately a specific set of
+            input labels to use
+        exclude : sequence, default None
+            Columns or fields to exclude
+        columns : sequence, default None
+            Column names to use. If the passed data do not have names
+            associated with them, this argument provides names for the
+            columns. Otherwise this argument indicates the order of the columns
+            in the result (any names not found in the data will become all-NA
+            columns)
+        coerce_float : boolean, default False
+            Attempt to convert values to non-string, non-numeric objects (like
+            decimal.Decimal) to floating point, useful for SQL result sets
+
+        Returns
+        -------
+        df : DataFrame
+        """
+        try:
+            from pandas import DataFrame
+            return DataFrame.from_records(self.data, **kwargs)
+        except ImportError as e:
+            print("Pandas import error")
+            raise e
+
+    def to_xarray(self, **kwargs):
+        """ Construct an xarray dataset
+
+        Each column will be converted into an independent variable in the
+        Dataset. If the dataframe's index is a MultiIndex, it will be expanded
+        into a tensor product of one-dimensional indices (filling in missing
+        values with NaN). This method will produce a Dataset very similar to
+        that on which the 'to_dataframe' method was called, except with
+        possibly redundant dimensions (since all dataset variables will have
+        the same dimensionality).
+        """
+        try:
+            from xray import Dataset
+            return Dataset.from_dataframe(self.to_pandas())
+        except ImportError as e:
+            print("xray import error")
+            raise e
+
+    def to_vaex(self, **kwargs):
+        """
+        Create an in memory Vaex dataset
+
+        Parameters
+        ----------
+        name: str
+            unique for the dataset
+
+        Returns
+        -------
+        df: vaex.DataSetArrays
+            vaex dataset
+        """
+        try:
+            import vaex
+            return vaex.from_pandas(self.to_pandas(), **kwargs)
+        except ImportError as e:
+            print("Vaex import error")
+            raise e
+
+    def to_dask(self, **kwargs):
+        """ Construct a Dask DataFrame
+
+        This splits an in-memory Pandas dataframe into several parts and constructs
+        a dask.dataframe from those parts on which Dask.dataframe can operate in
+        parallel.
+
+        Note that, despite parallelism, Dask.dataframe may not always be faster
+        than Pandas.  We recommend that you stay with Pandas for as long as
+        possible before switching to Dask.dataframe.
+
+        Parameters
+        ----------
+        npartitions : int, optional
+            The number of partitions of the index to create. Note that depending on
+            the size and index of the dataframe, the output may have fewer
+            partitions than requested.
+        chunksize : int, optional
+            The size of the partitions of the index.
+        sort: bool
+            Sort input first to obtain cleanly divided partitions or don't sort and
+            don't get cleanly divided partitions
+        name: string, optional
+            An optional keyname for the dataframe.  Defaults to hashing the input
+
+        Returns
+        -------
+        dask.DataFrame or dask.Series
+            A dask DataFrame/Series partitioned along the index
+        """
+        try:
+            from dask import dataframe
+            return dataframe.from_pandas(self.to_pandas(), **kwargs)
+        except ImportError as e:
+            print("Dask import error")
+            raise e
+
+    def to_astropy_table(self, **kwargs):
+        """
+        A class to represent tables of heterogeneous data.
+
+        `astropy.table.Table` provides a class for heterogeneous tabular data,
+        making use of a `numpy` structured array internally to store the data
+        values.  A key enhancement provided by the `Table` class is the ability
+        to easily modify the structure of the table by adding or removing
+        columns, or adding new rows of data.  In addition table and column
+        metadata are fully supported.
+
+        Parameters
+        ----------
+        masked : bool, optional
+            Specify whether the table is masked.
+        names : list, optional
+            Specify column names
+        dtype : list, optional
+            Specify column data types
+        meta : dict, optional
+            Metadata associated with the table.
+        copy : bool, optional
+            Copy the input data (default=True).
+        rows : numpy ndarray, list of lists, optional
+            Row-oriented data for table instead of ``data`` argument
+        copy_indices : bool, optional
+            Copy any indices in the input data (default=True)
+        **kwargs : dict, optional
+            Additional keyword args when converting table-like object
+
+        Returns
+        -------
+        df: astropy.table.Table
+            dataframe
+        """
+        try:
+            from astropy.table import Table
+            return Table(self.data, **kwargs)
+        except ImportError as e:
+            print("Astropy import error")
+            raise e
 
     def set_alias(self, alias, colname):
         """
@@ -1889,7 +2064,7 @@ class SimpleTable(object):
         if k in self:
             return self.data.__setitem__(self.resolve_alias(k), v)
         else:
-            self.add_column(k, v)
+            object.__setitem__(self, k, v)
 
     def __getattr__(self, k):
         try:
@@ -1898,7 +2073,11 @@ class SimpleTable(object):
             return object.__getattribute__(self, k)
 
     def __iter__(self):
-        return self.data.__iter__()
+        newtab = self.select('*', [0])
+        for d in self.data:
+            newtab.data[0] = d
+            yield newtab
+        # return self.data.__iter__()
 
     def iterkeys(self):
         """ Iterator over the columns of the table """
@@ -1911,12 +2090,10 @@ class SimpleTable(object):
             yield l
 
     def items(self):
-        """ Iterator on the (key, value) pairs """
         for k in self.colnames:
             yield k, self[k]
 
     def info(self):
-        """ prints information on the table """
         s = "\nTable: {name:s}\n       nrows={s.nrows:d}, ncols={s.ncols:d}, mem={size:s}"
         s = s.format(name=self.header.get('NAME', 'Noname'), s=self,
                      size=pretty_size_print(self.nbytes))
@@ -2015,9 +2192,11 @@ class SimpleTable(object):
         """
         return np.where( np.equal.outer( self[key], r2[key] ) )
 
-    def stack(self, r, defaults=None):
+    def stack(self, r, *args, **kwargs):
         """
         Superposes arrays fields by fields inplace
+
+        t.stack(t1, t2, t3, default=None, inplace=True)
 
         Parameters
         ----------
@@ -2025,8 +2204,19 @@ class SimpleTable(object):
         """
         if not hasattr(r, 'data'):
             raise AttributeError('r should be a Table object')
-        self.data = recfunctions.stack_arrays([self.data, r.data], defaults,
-                                              usemask=False, asrecarray=True)
+        defaults = kwargs.get('defaults', None)
+        inplace = kwargs.get('inplace', False)
+
+        data = [self.data, r.data] + [k.data for k in args]
+        sdata = recfunctions.stack_arrays(data, defaults, usemask=False,
+                                          asrecarray=True)
+
+        if inplace:
+            self.data = sdata
+        else:
+            t = self.__class__(self)
+            t.data = sdata
+            return t
 
     def join_by(self, r2, key, jointype='inner', r1postfix='1', r2postfix='2',
                 defaults=None, asrecarray=False, asTable=True):
@@ -2357,7 +2547,7 @@ class SimpleTable(object):
         if condition in [True, 'True', None]:
             ind = None
         else:
-            ind, = self.where(condition, condvars, **kwargs)
+            ind = self.where(condition, condvars, **kwargs)
 
         tab = self.select(fields, indices=ind)
 
@@ -2397,8 +2587,8 @@ class SimpleTable(object):
     def stats(self, fn=None, fields=None, fill=None):
         """ Make statistics on columns of a table
 
-        Parameters
-        ----------
+        Paramters
+        ---------
         fn: callable or sequence of callables
             functions to apply to each column
             default: (np.mean, np.std, np.nanmin, np.nanmax)
@@ -2611,7 +2801,6 @@ class AstroTable(SimpleTable):
 
     def zoneSearch(self, ramin, ramax, decmin, decmax, outtype=0):
         """ Perform a zone search on a table, i.e., a rectangular selection
-
         Parameters
         ----------
         ramin: float
