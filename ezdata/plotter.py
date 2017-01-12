@@ -35,8 +35,8 @@ Multiple groups can be done as well. (Caution, the `facet` option is not robust)
 :author: Morgan Fouesneau
 """
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import (absolute_import, division, print_function)
+
 import sys
 PY3 = sys.version_info[0] > 2
 
