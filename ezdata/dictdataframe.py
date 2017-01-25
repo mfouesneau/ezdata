@@ -318,7 +318,6 @@ class DictDataFrame(dict):
         try:
             return dict.__getitem__(self, k)
         except Exception as e:
-            print(e)
             return self.__class__({a:v[k] for a,v in self.items()})
 
     @property
