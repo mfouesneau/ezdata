@@ -479,6 +479,19 @@ class Group(object):
                                self.__class__.__name__))
 
     def pairplot(self, keys=None, **kwargs):
+        """ This is a high-level interface for PairGrid
+        intended to make it easy to draw a few common styles.
+
+        Parameters
+        ----------
+        keys: sequence
+            work with only a set of keys if provided.
+
+        Returns
+        -------
+        p: PairGrid instance
+            :class`PairGrid` which gives you all possible flexibility.
+        """
         if keys is None:
             keys = self.data.keys()
         return PairGrid(self, keys, allow_expressions=self.allow_expressions, **kwargs)
@@ -904,12 +917,36 @@ class Plotter(object):
                 yield k, d
 
     def pairplot(self, keys=None, **kwargs):
+        """ This is a high-level interface for PairGrid
+        intended to make it easy to draw a few common styles.
+
+        Parameters
+        ----------
+        keys: sequence
+            work with only a set of keys if provided.
+
+        Returns
+        -------
+        p: PairGrid instance
+            :class`PairGrid` which gives you all possible flexibility.
+        """
         if keys is None:
             keys = self.data.keys()
         return PairGrid(self, keys, allow_expressions=self.allow_expressions, **kwargs)
 
 
 class PairGrid(object):
+    """ Container to Plot pairwise relationships in a dataset.
+
+    By default, this function will create a grid of Axes such that each variable in
+    data will by shared in the y-axis across a single row and in the x-axis across
+    a single column. The diagonal Axes could be treated differently: for instance
+    drawing a plot to show the univariate distribution of the data for the
+    variable in that column.
+
+    It is also possible to show a subset of variables or plot different variables
+    on the rows and columns. This class works also with Group instances.
+    """
 
     def __init__(self, data, keys, allow_expressions=False, **kwargs):
         self.data = data
