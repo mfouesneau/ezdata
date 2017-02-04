@@ -49,6 +49,7 @@ import pylab as plt
 import matplotlib as mpl
 import numpy as np
 import itertools
+from matplotlib.ticker import MaxNLocator
 
 
 __all__ = ['Group', 'Plotter', 'create_common_cbar', 'colorify', 'evalexpr', 'create_common_legend']
@@ -477,6 +478,11 @@ class Group(object):
             raise RuntimeError('Cannot add {0} type objects to {1} instance'.format(other.__class__.__name__,
                                self.__class__.__name__))
 
+    def pairplot(self, keys=None, **kwargs):
+        if keys is None:
+            keys = self.data.keys()
+        return PairGrid(self, keys, allow_expressions=self.allow_expressions, **kwargs)
+
 
 class Plotter(object):
     """
@@ -512,6 +518,19 @@ class Plotter(object):
         self.label = label
         self.allow_expressions = allow_expressions
         self.show = plt.show
+
+    def _ensure_data_type(self, data):
+        """ Make sure the data is compatible with a dictionary like interface """
+        if isinstance(data, dict) or hasattr(data, '__getitem__'):
+            return data
+
+        # assuming array
+        data = {e:k for e, k in enumerate(np.asarray(data).T)}
+        return data
+
+    @property
+    def keys(self):
+        return self.data.keys()
 
     def _value_from_data(self, key):
         """ Parse a key for existing data in the dataframe. If not found,
@@ -583,6 +602,29 @@ class Plotter(object):
             data normalized colormap instance
         """
         return colorify(self.data.evalexpr(key), vmin, vmax, cmap)
+
+    def apply(self, fn, *args, **kwargs):
+        """ Apply an arbitrary function on the data to plot
+        The first argument of that function must be the dataset
+        By default uses the active axes.
+
+        Parameters
+        ----------
+        fn: callable
+            plotting function to apply with args and kwargs arguments
+
+        Returns
+        -------
+        r: tuple
+            anything that fn returns.
+        """
+        if isinstance(fn, basestring):
+            _fn = getattr(self, fn)
+            if _fn is None:
+                raise AttributeError('No function named {0:s}'.format(fn))
+            return _fn(*args, **kwargs)
+        else:
+            return fn(self.data, *args, **kwargs)
 
     @get_doc_from('scatter')
     def scatter(self, x, y, c='k', s=20, *args, **kwargs):
@@ -775,8 +817,7 @@ class Plotter(object):
             list of all axes used in the plot
         """
 
-        from . import sandbox
-        grp = sandbox.aggregate(self.data, lambda x: x, (key1, key2))
+        grp = self.aggregate(lambda x: x, (key1, key2))
 
         sx = {k[0] for k in grp}
         sx = {k:e for e, k in enumerate(sx)}
@@ -821,7 +862,7 @@ class Plotter(object):
             flattened sequence of keys and value
             (key1, key2, ... keyn, {})
         """
-        pv = [(k, list(v)) for k, v in self.multigroupby(self.d, *keys)]
+        pv = [(k, list(v)) for k, v in self.multigroupby(self.data, *keys)]
 
         def _aggregate(a, b=()):
             data = []
@@ -861,6 +902,298 @@ class Plotter(object):
                 yield k, self.multigroupby(d, *args[1:])
             else:
                 yield k, d
+
+    def pairplot(self, keys=None, **kwargs):
+        if keys is None:
+            keys = self.data.keys()
+        return PairGrid(self, keys, allow_expressions=self.allow_expressions, **kwargs)
+
+
+class PairGrid(object):
+
+    def __init__(self, data, keys, allow_expressions=False, **kwargs):
+        self.data = data
+        self.keys = keys
+        self.allow_expressions = allow_expressions
+        self.show = plt.show
+        nlines = ncols = len(self.keys)
+        self.shape = (nlines, ncols)
+        self.axes = np.empty((nlines, ncols), dtype=object)
+        self.axes_dims = []
+        self.set_options(**kwargs)
+        self._generate_grid()
+
+    def set_options(self, **kwargs):
+        self.lbls = kwargs.pop('labels', self.keys)
+        self.ticksrotation = kwargs.pop('ticksrotation', 0)
+        self.weights = kwargs.pop('weights', None)
+        self.max_n_ticks = kwargs.pop('max_n_ticks', 5)
+        return self
+
+    def adjust(self, left=None, bottom=None, right=None, top=None,
+               wspace=None, hspace=None):
+        """ adjust spacing between subplots using mpl.subplot_adjusts. """
+        plt.subplots_adjust(left, bottom, right, top, wspace, hspace)
+        return self
+
+    def _check_label_visibility(self):
+        axes = [(ax, lbls) for (ax, lbls) in zip(np.ravel(self.axes), self.axes_dims) if ax._visible]
+
+        # All axes but the last line of the grid
+        for ax, _ in axes[:-self.shape[1]]:
+            plt.setp(ax.get_xticklabels(), visible=False)
+            ax.set_xlabel('')
+
+        # Check where the x labels need to be put on the diagonal
+        if self.axes[-1][0]._visible:    # lower plots visible
+            ax = self.axes[0, 0]
+            plt.setp(ax.get_xticklabels(), visible=False)
+            ax.yaxis.set_tick_params(labelright=True, labelleft=False)
+            for k in range(1, self.shape[0]):
+                ax = self.axes[k, k]
+                plt.setp(ax.get_xticklabels(), visible=False)
+                ax.yaxis.set_tick_params(labelright=True, labelleft=False)
+        elif self.axes[0][-1]._visible:    # upper plots visible only
+            ax = self.axes[0, 0]
+            plt.setp(ax.get_xticklabels(), visible=True)
+            ax.set_xlabel(self.keys[0])
+            for k in range(1, self.shape[0]):
+                ax = self.axes[k, k]
+                plt.setp(ax.get_xticklabels(), visible=True)
+                ax.set_xlabel(self.keys[k])
+
+        # make all last grid column show y-labels only on the right
+        if self.axes[0][-1]._visible:    # upper plots visible
+            for e in range(0, self.shape[0] - 1):
+                ax = self.axes[e, -1]
+                plt.setp(ax.get_yticklabels(), visible=True)
+                ax.yaxis.set_label_position('right')
+                ax.yaxis.set_tick_params(labelright=True, labelleft=False)
+                ax.set_ylabel(self.axes_dims[e * self.shape[1]][1])
+            for e in range(1, self.shape[1]):
+                ax = self.axes[0, e]
+                plt.setp(ax.get_xticklabels(), visible=True)
+                ax.xaxis.set_label_position('top')
+                ax.xaxis.set_tick_params(labeltop=True, labelbottom=False)
+                ax.set_xlabel(self.keys[e])
+
+    def _generate_grid(self):
+
+        nlines, ncols = self.shape
+
+        for k in range(nlines * ncols):
+            yk, xk = np.unravel_index(k, self.shape)
+            self.axes_dims.append((self.keys[xk], self.keys[yk]))
+            sharey = None
+            sharex = None
+            if (xk >= 0):
+                sharex = self.axes[0, xk]
+            if (yk >= 0):
+                sharey = self.axes[yk, 0]
+
+            ax = plt.subplot(nlines, ncols, k + 1, sharey=sharey, sharex=sharex)
+            ax.xaxis.set_major_locator(MaxNLocator(self.max_n_ticks, prune="both"))
+            ax.yaxis.set_major_locator(MaxNLocator(self.max_n_ticks, prune="both"))
+            if (xk > 0):
+                plt.setp(ax.get_yticklabels(), visible=False)
+            else:
+                ax.set_ylabel(self.keys[yk])
+            if (yk < nlines - 1):
+                plt.setp(ax.get_xticklabels(), visible=False)
+            else:
+                ax.set_xlabel(self.keys[xk])
+            ax.set_visible(False)
+            self.axes[yk, xk] = ax
+
+    def _value_from_data(self, key):
+        """ Parse a key for existing data in the dataframe. If not found,
+        returns the key directly """
+        if type(key) not in basestring:
+            return key
+        elif key not in self.data:
+            if self.allow_expressions:
+                try:
+                    return evalexpr(self.data, key)
+                except:
+                    pass
+            return key
+        else:
+            return self.data[key]
+
+    def evalexpr(self, expr, exprvars=None, dtype=float):
+        """ evaluate expression based on the data and external variables
+            all np function can be used (log, exp, pi...)
+
+        Parameters
+        ----------
+        data: dict or dict-like structure
+            data frame / dict-like structure containing named columns
+
+        expr: str
+            expression to evaluate on the table
+            includes mathematical operations and attribute names
+
+        exprvars: dictionary, optional
+            A dictionary that replaces the local operands in current frame.
+
+        dtype: dtype definition
+            dtype of the output array
+
+        Returns
+        -------
+        out : np.array
+            array of the result
+        """
+        return evalexpr(self.data, expr, exprvars=exprvars, dtype=dtype)
+
+    def _apply(self, fn, *args, **kwargs):
+        """ Apply a function fn to the data
+
+        Parameters
+        ----------
+        fn: callable or str
+            function to apply or use a Plotter function is exists
+
+        Returns
+        -------
+        r: tuple
+            whatever fn returns
+        """
+        if isinstance(self.data, Group):
+            r = []
+            for d in self.data:
+                if isinstance(fn, basestring):
+                    _fn = getattr(d, fn)
+                    if _fn is None:
+                        raise AttributeError('No function named {0:s}'.format(fn))
+                    r.append(_fn(*args, **kwargs))
+                else:
+                    r.append(fn(d, *args, **kwargs))
+            return r
+        else:
+            if isinstance(fn, basestring):
+                _fn = getattr(self.data, fn)
+                if _fn is None:
+                    raise AttributeError('No function named {0:s}'.format(fn))
+                return _fn(*args, **kwargs)
+            else:
+                return fn(self.data, *args, **kwargs)
+
+    def map_diag(self, fn, *args, **kwargs):
+        """Plot with a univariate function on each diagonal subplot.
+
+        Parameters
+        ----------
+        func: callable plotting function
+            Must take an x array as a positional arguments and draw onto the
+            "currently active" matplotlib Axes. There is a special case when
+            using a ``hue`` variable and ``plt.hist``; the histogram will be
+            plotted with stacked bars.
+        only1d: bool
+            set to make the function only use the x-axis instead of both.
+        """
+        n, _ = self.shape
+        r = []
+
+        only1d = kwargs.pop('only1d', False)
+        nlines, ncols = self.shape
+
+        if only1d:
+            for ek, xk in enumerate(self.keys):
+                ax = plt.subplot(nlines, ncols, (ncols + 1) * ek + 1, sharex=self.axes[0][ek])
+                self.axes[ek, ek] = ax
+                plt.sca(ax)
+                ax.set_visible(True)
+                ax.set_xlabel(xk)
+                r.append(self._apply(fn, xk, *args, **kwargs))
+        else:
+            for ek, xk in enumerate(self.keys):
+                ax = self.axes[ek, ek]
+                plt.sca(ax)
+                ax.set_visible(True)
+                r.append(self._apply(fn, xk, xk, *args, **kwargs))
+
+        self._check_label_visibility()
+        return r
+
+    def map_offdiag(self, fn, *args, **kwargs):
+        """Plot with a bivariate function on off-diagonal subplots.
+
+        Parameters
+        ----------
+        func : callable plotting function
+            Must take x, y arrays as positional arguments and draw onto the
+            "currently active" matplotlib Axes.
+        """
+        r = []
+        for ax, (xk, yk) in zip(np.ravel(self.axes), self.axes_dims):
+            if xk != yk:
+                plt.sca(ax)
+                ax.set_visible(True)
+                r.append(self._apply(fn, xk, yk, *args, **kwargs))
+        self._check_label_visibility()
+        return r
+
+    def map_lower(self, fn, *args, **kwargs):
+        """Plot with a bivariate function on the lower diagonal subplots.
+
+        Parameters
+        ----------
+        func : callable plotting function
+            Must take x, y arrays as positional arguments and draw onto the
+            "currently active" matplotlib Axes.
+        """
+        lbl_k = -1
+        nlines, ncols = self.shape
+        r = []
+        for yi in range(nlines):
+            for xi in range(ncols):
+                lbl_k += 1
+                if xi < yi:
+                    ax = self.axes[yi, xi]
+                    plt.sca(ax)
+                    ax.set_visible(True)
+                    xk, yk = self.axes_dims[lbl_k]
+                    r.append(self._apply(fn, xk, yk, *args, **kwargs))
+        self._check_label_visibility()
+        return r
+
+    def map_upper(self, fn, *args, **kwargs):
+        """Plot with a bivariate function on the upper diagonal subplots.
+
+        Parameters
+        ----------
+        func : callable plotting function
+            Must take x, y arrays as positional arguments and draw onto the
+            "currently active" matplotlib Axes.
+        """
+        lbl_k = -1
+        nlines, ncols = self.shape
+        r = []
+        for yi in range(nlines):
+            for xi in range(ncols):
+                lbl_k += 1
+                if xi > yi:
+                    ax = self.axes[yi, xi]
+                    plt.sca(ax)
+                    ax.set_visible(True)
+                    xk, yk = self.axes_dims[lbl_k]
+                    r.append(self._apply(fn, xk, yk, *args, **kwargs))
+        self._check_label_visibility()
+        return r
+
+    def map(self, fn, *args, **kwargs):
+        """Plot with a bivariate function on all subplots.
+
+        Parameters
+        ----------
+        func : callable plotting function
+            Must take x, y arrays as positional arguments and draw onto the
+            "currently active" matplotlib Axes.
+        """
+        r = self.map_offdiag(fn, *args, **kwargs)
+        r.extend(self.map_diag(fn, *args, **kwargs))
+        return r
 
 
 def _intercept_empty_plot(*args, **kwargs):
