@@ -2565,7 +2565,7 @@ class SimpleTable(object):
         if condition in [True, 'True', None]:
             ind = None
         else:
-            ind = self.where(condition, condvars, **kwargs)
+            ind, _ = self.where(condition, condvars, **kwargs)
 
         tab = self.select(fields, indices=ind)
 
@@ -2901,7 +2901,7 @@ class AstroTable(SimpleTable):
             ind, d = self.coneSearch(ra, dec, r, outtype=2)
             ind = ind & self.zoneSearch(zone[0], zone[1], zone[2], zone[3], outtype=2)
             d = d[ind]
-            ind = np.where(ind)
+            ind, _ = np.where(ind)
             blobs.append(d)
 
         return ind, blobs[0]
