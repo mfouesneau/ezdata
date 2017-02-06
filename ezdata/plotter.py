@@ -672,6 +672,7 @@ class Plotter(object):
     @get_doc_from('hist')
     def hist(self, x, *args, **kwargs):
         _x = self._value_from_data(x)
+        ind = np.isfinite(_x)
         ax = kwargs.pop('ax', None)
         if ax is None:
             ax = plt.gca()
@@ -680,7 +681,12 @@ class Plotter(object):
         if not 'label' in kwargs:
             kwargs['label'] = str(self.label)
 
-        return ax.hist(_x, *args, **kwargs)
+        ind = np.isfinite(_x)
+        _w = kwargs.pop('weights', None)
+        if _w is not None:
+            return ax.hist(_x[ind], weights=_w[ind], *args, **kwargs)
+        else:
+            return ax.hist(_x[ind], *args, **kwargs)
 
     @get_doc_from('hist2d')
     def hist2d(self, x, y, *args, **kwargs):
@@ -694,7 +700,12 @@ class Plotter(object):
         if not 'label' in kwargs:
             kwargs['label'] = self.label
 
-        return ax.hist2d(_x, _y, *args, **kwargs)
+        ind = np.isfinite(_x) & np.isfinite(_y)
+        _w = kwargs.pop('weights', None)
+        if _w is not None:
+            return ax.hist2d(_x[ind], _y[ind], weights=_w[ind], *args, **kwargs)
+        else:
+            return ax.hist2d(_x[ind], _y[ind], *args, **kwargs)
 
     @get_doc_from('hexbin')
     def hexbin(self, x, y, C=None, *args, **kwargs):
@@ -709,28 +720,35 @@ class Plotter(object):
         if not 'label' in kwargs:
             kwargs['label'] = self.label
 
-        return ax.hexbin(_x, _y, C=_C, *args, **kwargs)
+        if _C is not None:
+            ind = np.isfinite(_x) & np.isfinite(_y) & np.isfinite(_C)
+            return ax.hexbin(_x[ind], _y[ind], C=_C[ind], *args, **kwargs)
+        else:
+            ind = np.isfinite(_x) & np.isfinite(_y)
+            return ax.hexbin(_x[ind], _y[ind], *args, **kwargs)
 
     @get_doc_from('violinplot')
     def violinplot(self, dataset, **kwargs):
-        d = [self._value_from_data(k) for k in dataset]
+        d = (self._value_from_data(k) for k in dataset)
+        d = [dk[np.isfinite(dk)] for dk in d]
         ax = kwargs.pop('ax', None)
         if ax is None:
             ax = plt.gca()
         self.axes = ax
         if not 'label' in kwargs:
-            kwargs['label'] = self.label
+            kwargs['labels'] = dataset
         return ax.violinplot(d, **kwargs)
 
     @get_doc_from('boxplot')
     def boxplot(self, dataset, **kwargs):
         d = [self._value_from_data(k) for k in dataset]
+        d = [dk[np.isfinite(dk)] for dk in d]
         ax = kwargs.pop('ax', None)
         if ax is None:
             ax = plt.gca()
         self.axes = ax
-        if not 'label' in kwargs:
-            kwargs['label'] = self.label
+        if not 'labels' in kwargs:
+            kwargs['labels'] = dataset
         return ax.boxplot(d, **kwargs)
 
     def groupby(self, key, select=None, labels=None, **kwargs):
