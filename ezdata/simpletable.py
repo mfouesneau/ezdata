@@ -66,6 +66,11 @@ except ImportError:
     _pd = None
 
 try:
+    from astropy.table import Table as _astropytable
+except ImportError:
+    _astropytable = None
+
+try:
     from .plotter import Plotter
 except ImportError:
     Plotter = None
@@ -179,15 +184,35 @@ def _fits_read_header(hdr):
     fieldTerms = ['TTYPE', 'TFORM', 'TUNIT', 'ALIAS']
 
     # read col comments
-    for k, name, comment in hdr.ascard['TTYPE*']:
-        comments[name] = comment
-        u = hdr.get(k.replace('TYPE', 'UNIT'), None)
-        if u is not None:
-            units[name] = u
+    # for k, name, comment in hdr.ascard['TTYPE*']:
+    try:
+        for card in hdr.cards['TTYPE*']:
+            name = card.value
+            comments[name] = card.comment
+            u = hdr.get(card.keyword.replace('TYPE', 'UNIT'), None)
+            if u is not None:
+                units[name] = u
 
-    for k, val, _ in hdr.ascard['ALIAS*']:
-        al, orig = val.split('=')
-        alias[al] = orig
+        # for k, val, _ in hdr.ascard['ALIAS*']:
+        for card in hdr.cards['ALIAS*']:
+            k = card.keyword
+            val = card.value
+            al, orig = val.split('=')
+            alias[al] = orig
+    except:   #pyfits stsci
+        for card in hdr.ascard['TTYPE*']:
+            name = card.value
+            comments[name] = card.comment
+            u = hdr.get(card.key.replace('TYPE', 'UNIT'), None)
+            if u is not None:
+                units[name] = u
+
+        # for k, val, _ in hdr.ascard['ALIAS*']:
+        for card in hdr.ascard['ALIAS*']:
+            k = card.key
+            val = card.value
+            al, orig = val.split('=')
+            alias[al] = orig
 
     # other specific keywords: COMMENT, HISTORY
     header_comments = []
@@ -1067,6 +1092,7 @@ class AstroHelpers(object):
     @elementwise
     def deg2dms(val, delim=':'):
         """ Convert degrees into hex coordinates
+
         Parameters
         ----------
         deg: float
@@ -1120,6 +1146,7 @@ class AstroHelpers(object):
     @elementwise
     def dms2deg(_str, delim=':'):
         """ Convert hex coordinates into degrees
+
         Parameters
         ----------
         str: string or sequence
@@ -1149,11 +1176,15 @@ class AstroHelpers(object):
         Celestial coordinates (RA, Dec) should be given in equinox J2000
         unless the b1950 is True.
 
-        select From           To         |   select    From          To
-        ----------------------------------------------------------------------
-        1      RA-Dec (2000)  Galactic   |     4       Ecliptic      RA-Dec
-        2      Galactic       RA-DEC     |     5       Ecliptic      Galactic
-        3      RA-Dec         Ecliptic   |     6       Galactic      Ecliptic
+        +-------+--------------+------------+----------+----------+-----------+
+        |select | From         | To         |   select |   From   |  To       |
+        +-------+--------------+------------+----------+----------+-----------+
+        |1      |RA-Dec (2000) | Galactic   |     4    | Ecliptic |  RA-Dec   |
+        +-------+--------------+------------+----------+----------+-----------+
+        |2      |Galactic      | RA-DEC     |     5    | Ecliptic |  Galactic |
+        +-------+--------------+------------+----------+----------+-----------+
+        |3      |RA-Dec        | Ecliptic   |     6    | Galactic |  Ecliptic |
+        +-------+--------------+------------+----------+----------+-----------+
 
         Parameters
         ----------
@@ -1180,13 +1211,14 @@ class AstroHelpers(object):
             Output Latitude in DEGREES
 
 
-        REVISION HISTORY:
-        Written W. Landsman,  February 1987
-        Adapted from Fortran by Daryl Yentis NRL
-        Converted to IDL V5.0   W. Landsman   September 1997
-        Made J2000 the default, added /FK4 keyword  W. Landsman December 1998
-        Add option to specify SELECT as a keyword W. Landsman March 2003
-        Converted from IDL to numerical Python: Erin Sheldon, NYU, 2008-07-02
+        .. note::
+
+            Written W. Landsman,  February 1987
+            Adapted from Fortran by Daryl Yentis NRL
+            Converted to IDL V5.0   W. Landsman   September 1997
+            Made J2000 the default, added /FK4 keyword  W. Landsman December 1998
+            Add option to specify SELECT as a keyword W. Landsman March 2003
+            Converted from IDL to numerical Python: Erin Sheldon, NYU, 2008-07-02
         """
 
         # Make a copy as an array. ndmin=1 to avoid messed up scalar arrays
@@ -1375,6 +1407,7 @@ class SimpleTable(object):
     def __init__(self, fname, *args, **kwargs):
 
         dtype = kwargs.pop('dtype', None)
+        dtype = kwargs.pop('format', dtype)
         self.caseless = kwargs.get('caseless', False)
         self._aliases = kwargs.get('aliases', {})
         self._units = kwargs.get('units', {})
@@ -1395,6 +1428,8 @@ class SimpleTable(object):
                 kwargs.setdefault('delimiter', ',')
                 commentedHeader = kwargs.pop('commentedHeader', False)
                 n, header, units, comments, aliases, names = _ascii_read_header(fname, commentedHeader=commentedHeader, **kwargs)
+                if 'names' in kwargs:
+                    n -= 1
                 kwargs.setdefault('names', names)
                 if _pd is not None:   # pandas is faster
                     kwargs.setdefault('comment', '#')
@@ -1409,7 +1444,7 @@ class SimpleTable(object):
                 self._desc.update(**comments)
                 self._aliases.update(**aliases)
                 kwargs.setdefault('names', True)
-            elif (extension in ('tsv', 'dat', 'txt')) or dtype in ('tsv', 'dat', 'txt'):
+            elif (extension in ('tsv', 'dat', 'txt')) or (dtype in ('tsv', 'dat', 'txt')):
                 commentedHeader = kwargs.pop('commentedHeader', True)
                 n, header, units, comments, aliases, names = _ascii_read_header(fname, commentedHeader=commentedHeader, **kwargs)
                 kwargs.setdefault('names', names)
@@ -1437,7 +1472,7 @@ class SimpleTable(object):
                 self._desc.update(**comments)
                 self._units.update(**units)
                 self._aliases.update(**aliases)
-            elif (extension in ('hdf5', 'hd5', 'hdf')) or dtype in (extension in ('hdf5', 'hd5', 'hdf')):
+            elif (extension in ('hdf5', 'hd5', 'hdf')) or (dtype in ('hdf5', 'hd5', 'hdf')):
                 if tables is None:
                     raise RuntimeError('Cannot read this format, pytables not found')
                 hdr, aliases, units, desc, data = _hdf5_read_data(fname, *args, **kwargs)
@@ -1446,6 +1481,17 @@ class SimpleTable(object):
                 self._units.update(**units)
                 self._desc.update(**desc)
                 self._aliases.update(**aliases)
+            elif (extension in ('vot', 'votable')) or (dtype in ('vot', 'votable')):
+                # Votable case
+                if _astropytable is None:
+                    raise RuntimeError('Cannot read this votable format, astropy not found')
+                data = _astropytable.read(fname, format='votable', *args, **kwargs)
+                units = [(k, data[k].unit.name) for k in data.keys()]
+                desc = [(k, data[k].description) for k in data.keys()]
+                self.data = data.as_array()
+                self.header = {}
+                self._units.update(units)
+                self._desc.update(desc)
             else:
                 raise Exception('Format {0:s} not handled'.format(extension))
         elif type(fname) == np.ndarray:
@@ -2108,10 +2154,12 @@ class SimpleTable(object):
             yield l
 
     def items(self):
+        """ Iterator on the (key, value) pairs """
         for k in self.colnames:
             yield k, self[k]
 
     def info(self):
+        """ prints information on the table """
         s = "\nTable: {name:s}\n       nrows={s.nrows:d}, ncols={s.ncols:d}, mem={size:s}"
         s = s.format(name=self.header.get('NAME', 'Noname'), s=self,
                      size=pretty_size_print(self.nbytes))
@@ -2605,8 +2653,8 @@ class SimpleTable(object):
     def stats(self, fn=None, fields=None, fill=None):
         """ Make statistics on columns of a table
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         fn: callable or sequence of callables
             functions to apply to each column
             default: (np.mean, np.std, np.nanmin, np.nanmax)
@@ -2627,9 +2675,10 @@ class SimpleTable(object):
         """
         from collections import OrderedDict
 
-        fn = (stats.mean, stats.std,
-              stats.min, stats.max,
-              stats.has_nan)
+        if fn is None:
+            fn = (stats.mean, stats.std,
+                stats.min, stats.max,
+                stats.has_nan)
 
         d = OrderedDict()
         d.setdefault('FIELD', [])
@@ -2819,6 +2868,7 @@ class AstroTable(SimpleTable):
 
     def zoneSearch(self, ramin, ramax, decmin, decmax, outtype=0):
         """ Perform a zone search on a table, i.e., a rectangular selection
+
         Parameters
         ----------
         ramin: float
