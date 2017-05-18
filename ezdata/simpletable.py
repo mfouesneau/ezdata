@@ -2569,7 +2569,7 @@ class SimpleTable(object):
             if indices is None:
                 return self
             else:
-                tab = self.__class__(self.take(indices))
+                tab = self.__class__(self[indices])
                 for k in self.__dict__.keys():
                     if k not in ('data', ):
                         setattr(tab, k, deepcopy(self.__dict__[k]))
@@ -2579,7 +2579,7 @@ class SimpleTable(object):
             for k in _fields:
                 _k = self.resolve_alias(k)
                 if indices is not None:
-                    d[k] = self[_k].take(indices)
+                    d[k] = self[_k][indices]
                 else:
                     d[k] = self[_k]
             d['header'] = deepcopy(self.header)
