@@ -674,6 +674,97 @@ class DictDataFrame(dict):
                    header=header + hdr, fmt=fmt,
                    comments='', **kwargs)
 
+    def join(self, key, other, key_other=None, columns_other=None, prefix=None):
+        """
+        Experimental joining of structures, (equivalent to SQL left outer join)
+        Example:
+        >>> x = np.arange(10)
+        >>> y = x**2
+        >>> z = x**3
+        >>> df = DictDataFrame(x=x, y=y)
+        >>> df2 = DictDataFrame(x=x[:4], z=z[:4])
+        >>> df.join('x', df2, 'x', column_other=['z'])
+
+        Parameters
+        ----------
+        key: str
+            key for the left table (self)
+
+        other: DictDataFrame
+            Other dataset to join with (the right side of the outer join)
+
+        key_other: str, optional
+            key on which to join (default identical to key)
+
+        columns_other: tuple, optional
+            column names to add to the dataframe (default: all fields)
+        prefix: str, optional
+            add a prefix to the new column 
+
+        Returns
+        -------
+        self: DictDataFrame
+            itself
+        """
+        N = len(self)
+        N_other = len(other)
+        if columns_other is None:
+            columns_other = list(other.keys())
+        if key_other is None:
+            key_other = key
+
+        # Bullet proofing existing data
+        if prefix is None:
+            for name in columns_other:
+                if name in self:
+                    raise ValueError("Field {0:s} already exists.".format(name))
+            else:
+                for name in columns_other:
+                    new_name = '{0:s}{1:s}'.format(prefix, name) 
+                    if new_name in self:
+                        raise ValueError("Field {0:s} already exists.".format(new_name))
+
+        # generate index
+        key = self[key]
+        key_other = other[key_other]
+        index = dict(zip(key, range(N)))
+        index_other = dict(zip(key_other, range(N_other)))
+
+        from_indices = np.zeros(N_other, dtype=np.int64)
+        to_indices = np.zeros(N_other, dtype=np.int64)
+        for i in range(N_other):
+            if key_other[i] in index:
+                to_indices[i] = index[key_other[i]]
+                from_indices[i] = index_other[key_other[i]]
+            else:
+                to_indices[i] = -1
+                from_indices[i] = -1
+
+        mask = to_indices != -1
+        to_indices = to_indices[mask]
+        from_indices = from_indices[mask]
+
+        dtypes = other.dtype
+        for column_name in columns_other:
+            dtype = dtypes[column_name] 
+            if np.issubdtype(dtype, np.inexact):
+                data = np.zeros(N, dtype=dtype)
+                data[:] = np.nan
+                data[to_indices] = other[column_name][from_indices]
+            else:
+                data = np.ma.masked_all(N, dtype=dtype)
+                values = other[column_name][from_indices]
+                data[to_indices] = values
+                data.mask[to_indices] = np.ma.masked
+                if not np.ma.is_masked(data): # forget the mask if we do not need it
+                    data = data.data
+            if prefix:
+                new_name = '{0:s}{1:s}'.format(prefix, column_name)
+            else:
+                new_name = column_name
+            self[new_name] = data
+        return self
+
 
 def _convert_dict_to_structured_ndarray(data, keys=None):
     """ convert_dict_to_structured_ndarray
