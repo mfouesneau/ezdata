@@ -1700,7 +1700,10 @@ class SimpleTable(object):
 
         Parameters
         ----------
-        data : ndarray (structured dtype), list of tuples, dict, or DataFrame
+        data : ndarray 
+            (structured dtype), list of tuples, dict, or DataFrame
+        keys: sequence, optional
+            ordered subset of columns to export
         index : string, list of fields, array-like
             Field of array to use as the index, alternately a specific set of
             input labels to use
@@ -1722,10 +1725,34 @@ class SimpleTable(object):
         """
         try:
             from pandas import DataFrame
-            return DataFrame.from_records(self.data, **kwargs)
-        except ImportError as e:
+            keys = kwargs.pop('keys', None)
+            return DataFrame.from_dict(self.to_dict(keys=keys), **kwargs)
+        except ImportError as error:
             print("Pandas import error")
-            raise e
+            raise error
+
+    def to_dict(self, keys=None, contiguous=False):
+        """ Construct a dictionary from this dataframe with contiguous arrays
+
+        Parameters
+        ----------
+        keys: sequence, optional
+            ordered subset of columns to export
+
+        contiguous: boolean
+            make sure each value is a contiguous numpy array object
+            (C-aligned)
+
+        Returns
+        -------
+        data: dict
+            converted data
+        """
+        if keys is None:
+            keys = self.keys()
+        if contiguous:
+            return {k: np.ascontiguousarray(self[k]) for k in keys}
+        return {k: self[k] for k in keys}
 
     def to_xarray(self, **kwargs):
         """ Construct an xarray dataset
@@ -1739,11 +1766,11 @@ class SimpleTable(object):
         the same dimensionality).
         """
         try:
-            from xray import Dataset
-            return Dataset.from_dataframe(self.to_pandas())
-        except ImportError as e:
+            from xarray import Dataset
+            return Dataset.from_dataframe(self.to_pandas(**kwargs))
+        except ImportError as error:
             print("xray import error")
-            raise e
+            raise error
 
     def to_vaex(self, **kwargs):
         """
@@ -1753,6 +1780,8 @@ class SimpleTable(object):
         ----------
         name: str
             unique for the dataset
+        keys: sequence, optional
+            ordered subset of columns to export
 
         Returns
         -------
@@ -1761,10 +1790,10 @@ class SimpleTable(object):
         """
         try:
             import vaex
-            return vaex.from_pandas(self.to_pandas(), **kwargs)
-        except ImportError as e:
+            return vaex.from_arrays(**self.to_dict(contiguous=True, **kwargs))
+        except ImportError as error:
             print("Vaex import error")
-            raise e
+            raise error
 
     def to_dask(self, **kwargs):
         """ Construct a Dask DataFrame
@@ -1779,6 +1808,8 @@ class SimpleTable(object):
 
         Parameters
         ----------
+        keys: sequence, optional
+            ordered subset of columns to export
         npartitions : int, optional
             The number of partitions of the index to create. Note that depending on
             the size and index of the dataframe, the output may have fewer
@@ -1798,10 +1829,11 @@ class SimpleTable(object):
         """
         try:
             from dask import dataframe
-            return dataframe.from_pandas(self.to_pandas(), **kwargs)
-        except ImportError as e:
+            keys = kwargs.pop('keys', None)
+            return dataframe.from_pandas(self.to_pandas(keys=keys), **kwargs)
+        except ImportError as error:
             print("Dask import error")
-            raise e
+            raise error
 
     def to_astropy_table(self, **kwargs):
         """
@@ -1840,10 +1872,14 @@ class SimpleTable(object):
         """
         try:
             from astropy.table import Table
-            return Table(self.data, **kwargs)
+            keys = kwargs.pop('keys', None)
+            return Table(self.to_records(keys=keys), **kwargs)
         except ImportError as e:
             print("Astropy import error")
             raise e
+
+    def _repr_html_(self):
+        return self.to_pandas().head()._repr_html_()
 
     def set_alias(self, alias, colname):
         """
