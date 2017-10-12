@@ -65,7 +65,7 @@ nor large data access**.
 Both data structures implements common ground base to line and column access in
 the same transparent manner.  These objects implement for instance array
 slicing, shape, dtypes on top of which they implement functions such as:
-`sortby`, `groupby`, `where`, and evaluation of expressions as keys. (see
+`sortby`, `groupby`, `where`, `join` and evaluation of expressions as keys. (see
 examples below). Both also have a direct access to a `Plotter` attribute
 
 These data classes allows easy conversions to many common dataframe
