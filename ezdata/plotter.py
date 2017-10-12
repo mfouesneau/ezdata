@@ -532,6 +532,12 @@ class Plotter(object):
         self.allow_expressions = allow_expressions
         self.show = plt.show
 
+    def set_options(self, **kwargs):
+        self.label = kwargs.get('label', self.label)
+        self.allow_expressions = kwargs.get('allow_expressions', self.allow_expressions)
+        self.show = kwargs.get('show', self.show)
+        return self
+
     def _ensure_data_type(self, data):
         """ Make sure the data is compatible with a dictionary like interface """
         if isinstance(data, dict) or hasattr(data, '__getitem__'):

@@ -2938,23 +2938,24 @@ class AstroTable(SimpleTable):
             ind = True
 
         blobs = []
-        if (cone is not None):
-            ra, dec, r = cone
-            _ind, d = self.coneSearch(ra, dec, r, outtype=1)
-            ind = ind & _ind.astype(bool)
-            blobs.append(d)
-        if (zone is not None):
-            _ind = self.zoneSearch(zone[0], zone[1], zone[2], zone[3], outtype=1)
-            ind = ind & _ind
-        elif (cone is not None) and (zone is not None):  # cone + zone
+        if (cone is not None) and (zone is not None):  # cone + zone
             ra, dec, r = cone
             ind, d = self.coneSearch(ra, dec, r, outtype=2)
             ind = ind & self.zoneSearch(zone[0], zone[1], zone[2], zone[3], outtype=2)
             d = d[ind]
-            ind = np.where(ind)[0]
             blobs.append(d)
+        elif (cone is not None):
+            ra, dec, r = cone
+            _ind, d = self.coneSearch(ra, dec, r, outtype=2)
+            ind = ind & _ind.astype(bool)
+            blobs.append(d[ind])
+        elif (zone is not None):
+            _ind = self.zoneSearch(zone[0], zone[1], zone[2], zone[3], outtype=1)
+            ind = ind & _ind
 
-        return ind, blobs[0]
+        ind = np.where(ind)[0]
+
+        return ind, blobs
 
     def selectWhere(self, fields, condition=None, condvars=None, cone=None, zone=None, **kwargs):
         """ Read table data fulfilling the given `condition`.
@@ -2968,7 +2969,7 @@ class AstroTable(SimpleTable):
         tab = self.select(fields, indices=ind)
 
         if cone is not None:
-            tab.add_column('separation', np.asarray(blobs), unit='degree')
+            tab.add_column('separation', np.squeeze(blobs), unit='degree')
 
         if self._ra_name in tab:
             tab.set_RA(self._ra_name)
