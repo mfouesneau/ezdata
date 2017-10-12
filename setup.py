@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name = "ezdata",
-    version = 0.1,
+    version = 0.9,
       description = "A Sandbox for simplistic column based data framework",
     long_description = readme(),
     author = "Morgan Fouesneau",
