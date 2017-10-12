@@ -111,16 +111,53 @@ class DictDataFrame(dict):
         """ Returns the number of rows """
         return len(self[list(self.keys())[0]])
 
-    def to_records(self, **kwargs):
-        """ Construct a numpy record array from this dataframe """
-        return _convert_dict_to_structured_ndarray(self)
+    def to_dict(self, keys=None, contiguous=False):
+        """ Construct a dictionary from this dataframe with contiguous arrays
+
+        Parameters
+        ----------
+        keys: sequence, optional
+            ordered subset of columns to export
+
+        contiguous: boolean
+            make sure each value is a contiguous numpy array object
+            (C-aligned)
+
+        Returns
+        -------
+        data: dict
+            converted data
+        """
+        if keys is None:
+            keys = self.keys()
+        if contiguous:
+            return {k: np.ascontiguousarray(self[k]) for k in keys}
+        return {k: self[k] for k in keys}
+
+    def to_records(self, keys=None):
+        """ Construct a numpy record array from this dataframe
+
+        Parameters
+        ----------
+        keys: sequence, optional
+            ordered subset of columns to export
+
+        Returns
+        -------
+        arr: recarray
+            converted data
+        """
+        return _convert_dict_to_structured_ndarray(self, keys=keys)
 
     def to_pandas(self, **kwargs):
         """ Construct a pandas dataframe
 
         Parameters
         ----------
-        data : ndarray (structured dtype), list of tuples, dict, or DataFrame
+        data : ndarray 
+            (structured dtype), list of tuples, dict, or DataFrame
+        keys: sequence, optional
+            ordered subset of columns to export
         index : string, list of fields, array-like
             Field of array to use as the index, alternately a specific set of
             input labels to use
@@ -142,10 +179,11 @@ class DictDataFrame(dict):
         """
         try:
             from pandas import DataFrame
-            return DataFrame.from_dict(self, **kwargs)
-        except ImportError as e:
+            keys = kwargs.pop('keys', None)
+            return DataFrame.from_dict(self.to_dict(keys=keys), **kwargs)
+        except ImportError as error:
             print("Pandas import error")
-            raise e
+            raise error
 
     def to_xarray(self, **kwargs):
         """ Construct an xarray dataset
@@ -157,13 +195,38 @@ class DictDataFrame(dict):
         that on which the 'to_dataframe' method was called, except with
         possibly redundant dimensions (since all dataset variables will have
         the same dimensionality).
+
+        Parameters
+        ----------
+        data : ndarray 
+            (structured dtype), list of tuples, dict, or DataFrame
+        keys: sequence, optional
+            ordered subset of columns to export
+        index : string, list of fields, array-like
+            Field of array to use as the index, alternately a specific set of
+            input labels to use
+        exclude : sequence, default None
+            Columns or fields to exclude
+        columns : sequence, default None
+            Column names to use. If the passed data do not have names
+            associated with them, this argument provides names for the
+            columns. Otherwise this argument indicates the order of the columns
+            in the result (any names not found in the data will become all-NA
+            columns)
+        coerce_float : boolean, default False
+            Attempt to convert values to non-string, non-numeric objects (like
+            decimal.Decimal) to floating point, useful for SQL result sets
+
+        Returns
+        -------
+        df : DataFrame
         """
         try:
             from xray import Dataset
-            return Dataset.from_dataframe(self.to_pandas())
-        except ImportError as e:
+            return Dataset.from_dataframe(self.to_pandas(**kwargs))
+        except ImportError as error:
             print("xray import error")
-            raise e
+            raise error
 
     def to_vaex(self, **kwargs):
         """
@@ -173,6 +236,8 @@ class DictDataFrame(dict):
         ----------
         name: str
             unique for the dataset
+        keys: sequence, optional
+            ordered subset of columns to export
 
         Returns
         -------
@@ -181,10 +246,10 @@ class DictDataFrame(dict):
         """
         try:
             import vaex
-            return vaex.from_pandas(self.to_pandas(), **kwargs)
-        except ImportError as e:
+            return vaex.from_arrays(**self.to_dict(contiguous=True, **kwargs))
+        except ImportError as error:
             print("Vaex import error")
-            raise e
+            raise error
 
     def to_dask(self, **kwargs):
         """ Construct a Dask DataFrame
@@ -199,6 +264,8 @@ class DictDataFrame(dict):
 
         Parameters
         ----------
+        keys: sequence, optional
+            ordered subset of columns to export
         npartitions : int, optional
             The number of partitions of the index to create. Note that depending on
             the size and index of the dataframe, the output may have fewer
@@ -218,10 +285,11 @@ class DictDataFrame(dict):
         """
         try:
             from dask import dataframe
-            return dataframe.from_pandas(self.to_pandas(), **kwargs)
-        except ImportError as e:
+            keys = kwargs.pop('keys', None)
+            return dataframe.from_pandas(self.to_pandas(keys=keys), **kwargs)
+        except ImportError as error:
             print("Dask import error")
-            raise e
+            raise error
 
     def to_astropy_table(self, **kwargs):
         """
@@ -260,10 +328,14 @@ class DictDataFrame(dict):
         """
         try:
             from astropy.table import Table
-            return Table(self.to_records(), **kwargs)
+            keys = kwargs.pop('keys', None)
+            return Table(self.to_records(keys=keys), **kwargs)
         except ImportError as e:
             print("Astropy import error")
             raise e
+
+    def _repr_html_(self):
+        return self.to_pandas().head()._repr_html_()
 
     @property
     def nrows(self):
@@ -276,12 +348,12 @@ class DictDataFrame(dict):
         return dict.__len__(self)
 
     @classmethod
-    def from_lines(cls, it):
+    def from_lines(cls, iterable):
         """ Create a DataFrame object from its lines instead of columns
 
         Parameters
         ----------
-        it: iterable
+        iterable: iterable
             sequence of lines with the same keys (expecting dict like structure)
 
         Returns
@@ -290,10 +362,10 @@ class DictDataFrame(dict):
             a new object
         """
         d = {}
-        n = 0
-        for line in it:
+        default_n = 0
+        for line in iterable:
             for k in line.keys():
-                d.setdefault(k, [np.atleast_1d(np.nan)] * n).append(np.atleast_1d(line[k]))
+                d.setdefault(k, [np.atleast_1d(np.nan)] * default_n).append(np.atleast_1d(line[k]))
         for k,v in dict.items(d):
             dict.__setitem__(d, k, np.squeeze(np.vstack(v)))
 
@@ -310,38 +382,38 @@ class DictDataFrame(dict):
     @property
     def nbytes(self):
         """ number of bytes of the object """
-        n = sum(k.nbytes if hasattr(k, 'nbytes') else sys.getsizeof(k)
-                for k in self.__dict__.values())
-        return n
+        nbytes = sum(k.nbytes if hasattr(k, 'nbytes') else sys.getsizeof(k)
+                     for k in self.__dict__.values())
+        return nbytes
 
     def __getitem__(self, k):
         try:
             return dict.__getitem__(self, k)
-        except Exception as e:
-            return self.__class__({a:v[k] for a,v in self.items()})
+        except Exception:
+            return self.__class__({a:v[k] for a, v in self.items()})
 
     @property
     def dtype(self):
         """ the dtypes of each column of the dataset """
-        return dict((k, v.dtype) for (k,v) in self.items())
+        return dict((k, v.dtype) for (k, v) in self.items())
 
     @property
     def shape(self):
         """ dict of shapes """
-        return dict((k, v.shape) for (k,v) in self.items())
+        return dict((k, v.shape) for (k, v) in self.items())
 
     def groupby(self, key):
         """ create an iterator which returns (key, DataFrame) grouped by each
         value of key(value) """
         for k, index in self.arg_groupby(key):
-            d = {a: b[index] for a,b in self.items()}
+            d = {a: b[index] for a, b in self.items()}
             yield k, self.__class__(d)
 
     def arg_groupby(self, key):
         """ create an iterator which returns (key, index) grouped by each
         value of key(value) """
         val = self.evalexpr(key)
-        ind = sorted(zip(val, range(len(val))), key=lambda x:x[0])
+        ind = sorted(zip(val, range(len(val))), key=lambda x: x[0])
 
         for k, grp in itertools.groupby(ind, lambda x: x[0]):
             index = [k[1] for k in grp]
@@ -373,7 +445,7 @@ class DictDataFrame(dict):
         """
         return dict.items(self)
 
-    def where(self, condition, condvars=None, **kwargs):
+    def where(self, condition, condvars=None):
         """ Read table data fulfilling the given `condition`.
         Only the rows fulfilling the `condition` are included in the result.
 
@@ -551,14 +623,67 @@ class DictDataFrame(dict):
         """
         return evalexpr(self, expr, exprvars=exprvars, dtype=dtype)
 
+    # for common interfaces
+    evaluate = evalexpr
 
-def _convert_dict_to_structured_ndarray(data):
+    def write(self, fname, keys=None, header=None, **kwargs):
+        """Write DictDataFrame into file
+
+        Parameters
+        ---------
+        fname: string
+            file to write into
+
+        keys: sequence, optional
+            ordered sequence of columns
+
+        header: string
+            header to add to the file
+
+        extension: str
+            csv or txt/dat file
+            auto guess from fname
+            sets the delimiter and comments accordingly
+
+        delimiter: str
+            force  the column delimiter
+
+        comments: str
+            force the char defining comment line
+
+        kwargs: dict
+            forwarded to np.savetxt
+        """
+        extension = kwargs.pop('extension', None)
+        if extension is None:
+            extension = fname.split('.')[-1]
+        if extension == 'csv':
+            comments = kwargs.pop('comments', '#')
+            delimiter = kwargs.pop('delimiter', ',')
+        elif extension in ('txt', 'dat'):
+            comments = kwargs.pop('comments', '#')
+            delimiter = kwargs.pop('delimiter', ' ')
+
+        data = self.to_records(keys)
+        hdr = comments + " " + delimiter.join(data.dtype.names)
+
+        dtypes = (self.dtype[k] for k in keys)
+        fmt = delimiter.join(['%' + k.kind.lower() for k in dtypes])
+
+        np.savetxt(fname, data, delimiter=delimiter,
+                   header=header + hdr, fmt=fmt,
+                   comments='', **kwargs)
+
+
+def _convert_dict_to_structured_ndarray(data, keys=None):
     """ convert_dict_to_structured_ndarray
 
     Parameters
     ----------
     data: dictionary like object
         data structure which provides iteritems and itervalues
+    keys: sequence, optional
+        ordered subset of columns to export
 
     returns
     -------
@@ -566,9 +691,11 @@ def _convert_dict_to_structured_ndarray(data):
         structured numpy array
     """
     newdtype = []
-    for key, dk in iteritems(data):
-        _dk = np.asarray(dk)
-        dtype = _dk.dtype
+    if keys is None:
+        keys = data.keys()
+    for key in keys:
+        _dk = data[key]
+        dtype = data.dtype[key]
         # unknown type is converted to text
         if dtype.type == np.object_:
             if len(data) == 0:
@@ -580,7 +707,7 @@ def _convert_dict_to_structured_ndarray(data):
             newdtype.append((str(key), _dk.dtype, (_dk.shape[1],)))
         else:
             newdtype.append((str(key), _dk.dtype))
-    tab = np.rec.fromarrays(itervalues(data), dtype=newdtype)
+    tab = np.rec.fromarrays((data[k] for k in keys), dtype=newdtype)
     return tab
 
 
@@ -603,7 +730,7 @@ def _df_multigroupby(ary, *args):
         nested = False
 
     val = ary[args[0]]
-    ind = sorted(zip(val, range(len(val))), key=lambda x:x[0])
+    ind = sorted(zip(val, range(len(val))), key=lambda x: x[0])
 
     for k, grp in itertools.groupby(ind, lambda x:x[0]):
         index = [v[1] for v in grp]
@@ -615,7 +742,7 @@ def _df_multigroupby(ary, *args):
             yield k, d
 
 
-def _df_multigroupby_aggregate(pv, func=lambda x:x):
+def _df_multigroupby_aggregate(pv, func=lambda x: x):
     """
     Generate a flattened structure from multigroupby result
 
@@ -684,9 +811,9 @@ def evalexpr(data, expr, exprvars=None, dtype=float):
             _globals[k] = data[k]
 
     if exprvars is not None:
-        if (not (hasattr(exprvars, 'items'))):
+        if not hasattr(exprvars, 'items'):
             raise AttributeError("Expecting a dictionary-like as condvars with an `items` method")
-        for k, v in ( exprvars.items() ):
+        for k, v in (exprvars.items()):
             _globals[k] = v
 
     # evaluate expression, to obtain the final filter
