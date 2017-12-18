@@ -670,6 +670,10 @@ class DictDataFrame(dict):
         dtypes = (self.dtype[k] for k in keys)
         fmt = delimiter.join(['%' + k.kind.lower() for k in dtypes])
 
+        #Monkey patch to help unicode/bytes/str mess
+        if PY3:
+            fmt = fmt.replace('u', 's')
+
         np.savetxt(fname, data, delimiter=delimiter,
                    header=header + hdr, fmt=fmt,
                    comments='', **kwargs)
