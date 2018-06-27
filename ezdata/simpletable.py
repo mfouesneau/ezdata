@@ -1494,7 +1494,7 @@ class SimpleTable(object):
                 if _astropytable is None:
                     raise RuntimeError('Cannot read this votable format, astropy not found')
                 data = _astropytable.read(fname, format='votable', *args, **kwargs)
-                units = [(k, getattr(data[k].unit, "name", None)) for k in data.keys()]
+                units = [(k, getattr(data[k].unit, "name", "")) for k in data.keys()]
                 desc = [(k, data[k].description) for k in data.keys()]
                 self.data = data.as_array()
                 self.header = {}
