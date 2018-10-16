@@ -881,6 +881,25 @@ def _convert_dict_to_structured_ndarray(data):
     return tab
 
 
+def _recarray_rename_fields(data, **mapping):
+    """
+    Rename the fields from a flexible-datatype ndarray or recarray.
+
+    Parameters
+    ----------
+    base : ndarray
+        Input array whose fields must be modified.
+    mapping : dictionary
+        Dictionary mapping old field names to their new version.
+    """
+    names = list(data.dtype.names)
+    maps = dict(zip(names, range(len(names))))
+    for old_name, new_name in mapping.items():
+        names[maps[old_name]] = new_name
+    data.dtype.names = names
+    return data
+
+
 def __indent__(rows, header=None, units=None, headerChar='-',
                delim=' | ', endline='\n', **kwargs):
     """Indents a table by column.
@@ -2340,62 +2359,127 @@ class SimpleTable(object):
             t.data = sdata
             return t
 
-    def join_by(self, r2, key, jointype='inner', r1postfix='1', r2postfix='2',
-                defaults=None, asrecarray=False, asTable=True):
-        """
-        Join arrays `r1` and `r2` on key `key`.
+    def join(self, other, on=None, left_on=None, right_on=None, 
+         lsuffix='', rsuffix='', how='left', inplace=False):
+        """ Return a dataset joined with other datasets, matched 
+           by columns/expression on/left_on/right_on
 
-        The key should be either a string or a sequence of string corresponding
-        to the fields used to join the array.
-        An exception is raised if the `key` field cannot be found in the two input
-        arrays.
-        Neither `r1` nor `r2` should have any duplicates along `key`: the presence
-        of duplicates will make the output quite unreliable. Note that duplicates
-        are not looked for by the algorithm.
+        If neither on/left_on/right_on is given, the join is done by
+        simply adding the columns (i.e. on the implicit
+        row index).
 
         Parameters
         ----------
-        key: str or seq(str)
-            corresponding to the fields used for comparison.
-
-        r2: Table
+        other: Table
             Table to join with
 
-        jointype: str in {'inner', 'outer', 'leftouter'}
-            * 'inner'     : returns the elements common to both r1 and r2.
-            * 'outer'     : returns the common elements as well as the elements of r1 not in r2 and the elements of not in r2.
-            * 'leftouter' : returns the common elements and the elements of r1 not in r2.
+        on: string
+            default key for the left table (self)
 
-        r1postfix: str
-            String appended to the names of the fields of r1 that are present in r2
+        left_on: string
+            key for the left table (self), overrides on
 
-        r2postfix:  str
-            String appended to the names of the fields of r2 that are present in r1
+        right_on: string 
+            default key for the right table (other), overrides on
 
-        defaults:   dict
-            Dictionary mapping field names to the corresponding default values.
+        lsuffix: string 
+            suffix to add to the left column names in case of a name collision
+
+        rsuffix: string 
+            similar for the right
+
+        how: string 
+            how to join, 'left' keeps all rows on the left, and adds columns (with possible missing values)
+                'right' is similar with self and other swapped.
+
+        inplace: boolean 
+            do not copy the left table 
 
         Returns
         -------
         tab: Table
             joined table
 
-        .. note::
-
-            * The output is sorted along the key.
-
-            * A temporary array is formed by dropping the fields not in the key
-              for the two arrays and concatenating the result. This array is
-              then sorted, and the common entries selected. The output is
-              constructed by filling the fields with the selected entries.
-              Matching is not preserved if there are some duplicates...
         """
-        arr = recfunctions.join_by(key, self.data, r2.data, jointype=jointype,
-                                   r1postfix=r1postfix, r2postfix=r2postfix,
-                                   defaults=defaults, usemask=False,
-                                   asrecarray=True)
+        ds = self if inplace else SimpleTable(self, copy=True)
+        if how == 'left':
+            left = ds
+            right = other
+        elif how == 'right':
+            left = other
+            right = ds
+            lsuffix, rsuffix = rsuffix, lsuffix
+            left_on, right_on = right_on, left_on
+        else:
+            raise ValueError('join type not supported: {}, only left and right'.format(how))
+        
+        right_keys = list(right.keys())
+        left_keys = list(left.keys())
+        for name in right_keys:
+            if name in left_keys and name + rsuffix == name + lsuffix:
+                raise ValueError('column name collision: {} exists in both column, and no proper suffix given'
+                                 .format(name))
+        N = len(left)
+        N_other = len(right)
+        left_on = left_on or on
+        right_on = right_on or on
+        
+        right_keys = [k for k in right_keys if not k == right_on]
+        
+        print(right_keys, left_keys)
+        if left_on is None and right_on is None:
+            for name in right_keys:
+                right_name = name
+                if name in left_keys:
+                    if lsuffix:
+                        left.add_column(name + lsuffix, left[name])
+                        left.remove_column(name)
+                    right_name = name + rsuffix
+                left.add_column(right_name, right[name])
+        else:
+            left_values = left.evalexpr(left_on)
+            right_values = right.evalexpr(right_on)
+            # maps from the left_values to row #
+            if np.ma.isMaskedArray(left_values):
+                mask = ~left_values.mask
+                left_values = left_values.data
+                index_left = dict(zip(left_values[mask], np.arange(N)[mask]))
+            else:
+                index_left = dict(zip(left_values, np.arange(N)))
+            # idem for right
+            if np.ma.isMaskedArray(right_values):
+                mask = ~right_values.mask
+                right_values = right_values.data
+                index_other = dict(zip(right_values[mask], np.arange(N_other)[mask]))
+            else:
+                index_other = dict(zip(right_values, np.arange(N_other)))
 
-        return SimpleTable(arr)
+            # we do a left join, find all rows of the right dataset
+            # that has an entry on the left
+            # for each row in the right
+            # find which row it needs to go to in the right
+            # from_indices = np.zeros(N_other, dtype=np.int64)  # row # of right
+            # to_indices = np.zeros(N_other, dtype=np.int64)    # goes to row # on the left
+            # keep a boolean mask of which rows are found
+            left_mask = np.ones(N, dtype=np.bool)
+            # and which row they point to in the right
+            left_row_to_right = np.zeros(N, dtype=np.int64) - 1
+            for i in range(N_other):
+                left_row = index_left.get(right_values[i])
+                if left_row is not None:
+                    left_mask[left_row] = False  # unmask, it exists
+                    left_row_to_right[left_row] = i
+
+            lookup = np.ma.array(left_row_to_right, mask=left_mask)
+            for name in right_keys:
+                right_name = name
+                if name in left_keys:
+                    if lsuffix:
+                        left.add_column(name + lsuffix, left[name])
+                        left.remove_column(name)
+                    right_name = name + rsuffix
+                left.add_column(right_name, right[name])
+        return left
 
     @property
     def empty_row(self):
@@ -2462,6 +2546,16 @@ class SimpleTable(object):
 
         if description is not None:
             self.set_comment(name, description)
+
+    def rename_columns(self, **mapping):
+        """ Rename the fields from a flexible-datatype ndarray or recarray.
+    
+        Parameters
+        ----------
+        mapping : dictionary
+            Dictionary mapping old field names to their new version.
+        """ 
+        _recarray_rename_fields(self.data, **mapping)
 
     def append_row(self, iterable):
         """
