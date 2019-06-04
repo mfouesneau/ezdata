@@ -180,6 +180,8 @@ def hv_plot(dataframe, xname, yname,
 
 
 def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwargs={}, diag_kwargs={}):
+    """ Corner plot
+    """
     if varnames is None:
         varnames = df.keys()
     if figsize is None:
