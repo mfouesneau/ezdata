@@ -179,6 +179,53 @@ def hv_plot(dataframe, xname, yname,
     return _imshow_hv_map(agg, extent=extent, **kwargs)
 
 
+def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwargs={}, diag_kwargs={}):
+    if varnames is None:
+        varnames = df.keys()
+    if figsize is None:
+        figsize = (3 * len(varnames), 3 * len(varnames))
+    if labels is None:
+        labels = varnames
+    
+    label_maps = {varname:label for varname, label in zip(varnames, labels)}
+
+    plt.figure(figsize=figsize)
+    pp = HvPlotter(df).pairplot(keys=varnames, labels=labels)
+    kwargs = dict(only1d=True, bins=shape, edgecolor='k', facecolor='None', histtype='step')
+    kwargs.update(diag_kwargs)
+    r = pp.map_diag('hist', **kwargs)
+    plt.setp(plt.gcf().get_axes()[-1].get_xticklabels(), visible=True)
+    kwargs = dict(cmap=plt.cm.hot, shape=shape)
+    kwargs.update(lower_kwargs)
+    pp.map_lower('hv_scatter', **kwargs) #, norm=colors.LogNorm());
+    # BUG
+    plt.setp(pp.axes[-1][-1].get_xticklabels(), visible=True)
+    corner_colorbar();
+
+    # Quantiles
+    for num, (kx, labelx) in enumerate(zip(varnames, labels)):
+        ax = pp.axes[num][num]
+        q_16, q_50, q_84 = np.quantile(df[kx], [0.16, 0.5, 0.84])
+        q_m, q_p = q_50 - q_16, q_84 - q_50
+
+        # Format the quantile display.
+        fmt = "{{0:{0}}}".format(".2f").format
+        title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+        title = title.format(fmt(q_50), fmt(q_m), fmt(q_p))
+        title = "{0} = {1}".format(labelx, title)
+        ax.set_title(title, fontsize='medium')
+        ylim = ax.get_ylim()
+        ax.vlines([q_16, q_50, q_84], ylim[0], ylim[1], color='k', linestyle='--')
+    
+    for axes in pp.axes:
+        axes[0].set_ylabel(label_maps.get(axes[0].get_ylabel(), ''))
+    for ax in pp.axes[-1][-len(varnames):]:
+        ax.set_xlabel(label_maps.get(ax.get_xlabel(), ''))
+    return pp
+
+
+
+
 class HvPlotter(Plotter):
     """
     A wrapper around plotting functions and DataFrame adding Holoview interfaces
@@ -263,50 +310,6 @@ def corner_colorbar(*args, **kwargs):
             cax.vlines(denorm, ylim[0], ylim[1], 'k')
             cax.text(denorm, ylim[1], r'{0:d}$\,\sigma$    '.format(k), ha='center', va='bottom')
     return cb
-
-def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwargs={}, diag_kwargs={}):
-    if varnames is None:
-        varnames = df.keys()
-    if figsize is None:
-        figsize = (3 * len(varnames), 3 * len(varnames))
-    if labels is None:
-        labels = varnames
-    
-    label_maps = {varname:label for varname, label in zip(varnames, labels)}
-
-    plt.figure(figsize=figsize)
-    pp = HvPlotter(df).pairplot(keys=varnames, labels=labels)
-    kwargs = dict(only1d=True, bins=shape, edgecolor='k', facecolor='None', histtype='step')
-    kwargs.update(diag_kwargs)
-    r = pp.map_diag('hist', **kwargs)
-    plt.setp(plt.gcf().get_axes()[-1].get_xticklabels(), visible=True)
-    kwargs = dict(cmap=plt.cm.hot, shape=shape)
-    kwargs.update(lower_kwargs)
-    pp.map_lower('hv_scatter', **kwargs) #, norm=colors.LogNorm());
-    # BUG
-    plt.setp(pp.axes[-1][-1].get_xticklabels(), visible=True)
-    corner_colorbar();
-
-    # Quantiles
-    for num, (kx, labelx) in enumerate(zip(varnames, labels)):
-        ax = pp.axes[num][num]
-        q_16, q_50, q_84 = np.quantile(df[kx], [0.16, 0.5, 0.84])
-        q_m, q_p = q_50 - q_16, q_84 - q_50
-
-        # Format the quantile display.
-        fmt = "{{0:{0}}}".format(".2f").format
-        title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
-        title = title.format(fmt(q_50), fmt(q_m), fmt(q_p))
-        title = "{0} = {1}".format(labelx, title)
-        ax.set_title(title, fontsize='medium')
-        ylim = ax.get_ylim()
-        ax.vlines([q_16, q_50, q_84], ylim[0], ylim[1], color='k', linestyle='--')
-    
-    for axes in pp.axes:
-        axes[0].set_ylabel(label_maps.get(axes[0].get_ylabel(), ''))
-    for ax in pp.axes[-1][-len(varnames):]:
-        ax.set_xlabel(label_maps.get(ax.get_xlabel(), ''))
-    return pp
 
 
 class logcount(datashader.count):
