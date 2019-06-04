@@ -222,6 +222,10 @@ class HvPlotter(Plotter):
         data = self.get(xname, yname)
         return hv_plot(data, xname, yname, *args, **kwargs)
 
+    @get_doc_from(hv_corner)
+    def corner(self, df, varnames=None, shape=32, labels=None, figsize=None, lower_kwargs={}, diag_kwargs={}):
+        return hv_corner(df, varnames, shape, labels, figsize, lower_kwargs, diag_kwargs)
+
     line = plot
 
 
@@ -303,3 +307,10 @@ def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwar
     for ax in pp.axes[-1][-len(varnames):]:
         ax.set_xlabel(label_maps.get(ax.get_xlabel(), ''))
     return pp
+
+
+class logcount(datashader.count):
+
+  @staticmethod
+  def _finalize(bases, **kwargs):
+    return datashader.reductions.xr.DataArray(np.log10(bases[0]), **kwargs)
