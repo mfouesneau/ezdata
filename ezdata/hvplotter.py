@@ -199,7 +199,7 @@ def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwar
     plt.setp(plt.gcf().get_axes()[-1].get_xticklabels(), visible=True)
     kwargs = dict(cmap=plt.cm.hot, shape=shape)
     kwargs.update(lower_kwargs)
-    pp.map_lower('hv_scatter', **kwargs) #, norm=colors.LogNorm());
+    pp.map_lower('scatter', **kwargs) #, norm=colors.LogNorm());
     # BUG
     plt.setp(pp.axes[-1][-1].get_xticklabels(), visible=True)
     corner_colorbar();
