@@ -202,18 +202,27 @@ class HvPlotter(Plotter):
         contains the last axes reference(s) after a plot
         (do not exists if no plotting function was called)
     """
+    def get(self, *args):
+      data = self.data
+      try:
+        df = {name: self._value_from_data(name) for name in args}
+        return SimpleTable(df)
+      except:
+        return data
 
     @get_doc_from(hv_scatter)
-    def hv_scatter(self, xname, yname, *args, **kwargs):
+    def scatter(self, xname, yname, *args, **kwargs):
         """ Holoview Points wrapper """
-        return hv_scatter(self.data, xname, yname, *args, **kwargs)
+        data = self.get(xname, yname)
+        return hv_scatter(data, xname, yname, *args, **kwargs)
 
     @get_doc_from(hv_scatter)
-    def hv_plot(self, xname, yname, *args, **kwargs):
+    def plot(self, xname, yname, *args, **kwargs):
         """ Holoview Line wrapper """
-        return hv_plot(self.data, xname, yname, *args, **kwargs)
+        data = self.get(xname, yname)
+        return hv_plot(data, xname, yname, *args, **kwargs)
 
-    hv_line = hv_plot
+    line = plot
 
 
 def corner_colorbar(*args, **kwargs):
