@@ -674,6 +674,34 @@ class Plotter(object):
             kwargs['label'] = self.label
 
         return ax.plot(_x, _y, *args, **kwargs)
+    
+    @get_doc_from('bar')
+    def bar(self, x, y, *args, **kwargs):
+        _x = self._value_from_data(x)
+        _y = self._value_from_data(y)
+        ax = kwargs.pop('ax', None)
+        if ax is None:
+            ax = plt.gca()
+        self.axes = ax
+
+        if not 'label' in kwargs:
+            kwargs['label'] = self.label
+
+        return ax.bar(_x, _y, *args, **kwargs)
+    
+    @get_doc_from('step')
+    def step(self, x, y, *args, **kwargs):
+        _x = self._value_from_data(x)
+        _y = self._value_from_data(y)
+        ax = kwargs.pop('ax', None)
+        if ax is None:
+            ax = plt.gca()
+        self.axes = ax
+
+        if not 'label' in kwargs:
+            kwargs['label'] = self.label
+
+        return ax.step(_x, _y, *args, **kwargs)
 
     @get_doc_from('hist')
     def hist(self, x, *args, **kwargs):
