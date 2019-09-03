@@ -52,7 +52,7 @@ try:
     from astropy.io import fits as pyfits
 except ImportError:
     import pyfits
-except:
+except Exception:
     pyfits = None
 
 try:
@@ -199,7 +199,7 @@ def _fits_read_header(hdr):
             val = card.value
             al, orig = val.split('=')
             alias[al] = orig
-    except:   #pyfits stsci
+    except Exception:   # pyfits stsci
         for card in hdr.ascard['TTYPE*']:
             name = card.value
             comments[name] = card.comment
@@ -266,7 +266,7 @@ def _fits_generate_header(tab):
 
     # add aliases
     for e, v in enumerate(tab._aliases.items()):
-        cards.append( ('ALIAS{0:d}'.format(e + 1), '='.join(v), '') )
+        cards.append(('ALIAS{0:d}'.format(e + 1), '='.join(v), ''))
 
     if tab.header['NAME'] not in ['', 'None', None, 'No Name']:
         cards.append(('EXTNAME', tab.header['NAME'], ''))
@@ -368,7 +368,8 @@ def _fits_append(filename, data, header=None, checksum=False, verify=True,
         `astropy.io.fits.open`.
     """
 
-    name, closed, noexist_or_empty = pyfits.convenience._stat_filename_or_fileobj(filename)
+    name, closed, noexist_or_empty =\
+        pyfits.convenience._stat_filename_or_fileobj(filename)
 
     if noexist_or_empty:
         #
@@ -399,8 +400,8 @@ def _fits_append(filename, data, header=None, checksum=False, verify=True,
             f.close()
 
 
-def _ascii_read_header(fname, comments='#', delimiter=None, commentedHeader=True,
-                       *args, **kwargs):
+def _ascii_read_header(fname, comments='#', delimiter=None,
+                       commentedHeader=True, *args, **kwargs):
     """
     Read ASCII/CSV header
 
@@ -439,8 +440,8 @@ def _ascii_read_header(fname, comments='#', delimiter=None, commentedHeader=True
         comments/description of keywords
 
     names: sequence
-        sequence or str, first data line after header, expected to be the column
-        names.
+        sequence or str, first data line after header, expected to be the
+        column names.
     """
     if hasattr(fname, 'read'):
         stream = fname
@@ -544,7 +545,8 @@ def _hdf5_write_data(filename, data, tablename=None, mode='w', append=False,
     Parameters
     ----------
     filename : file path, or tables.File instance
-        File to write to.  If opened, must be opened and writable (mode='w' or 'a')
+        File to write to.  If opened, must be opened and writable
+        (mode='w' or 'a')
 
     data: recarray
         data to write to the new file
@@ -1729,7 +1731,7 @@ class SimpleTable(object):
 
         Parameters
         ----------
-        data : ndarray 
+        data : ndarray
             (structured dtype), list of tuples, dict, or DataFrame
         keys: sequence, optional
             ordered subset of columns to export
@@ -2035,7 +2037,7 @@ class SimpleTable(object):
             else:
                 _re = [regexp]
 
-            lbls = self.colnames 
+            lbls = self.colnames
             if not skip_aliases:
                 lbls += tuple(self._aliases.keys())
 
@@ -2359,9 +2361,9 @@ class SimpleTable(object):
             t.data = sdata
             return t
 
-    def join(self, other, on=None, left_on=None, right_on=None, 
+    def join(self, other, on=None, left_on=None, right_on=None,
          lsuffix='', rsuffix='', how='left', inplace=False):
-        """ Return a dataset joined with other datasets, matched 
+        """ Return a dataset joined with other datasets, matched
            by columns/expression on/left_on/right_on
 
         If neither on/left_on/right_on is given, the join is done by
@@ -2379,21 +2381,21 @@ class SimpleTable(object):
         left_on: string
             key for the left table (self), overrides on
 
-        right_on: string 
+        right_on: string
             default key for the right table (other), overrides on
 
-        lsuffix: string 
+        lsuffix: string
             suffix to add to the left column names in case of a name collision
 
-        rsuffix: string 
+        rsuffix: string
             similar for the right
 
-        how: string 
+        how: string
             how to join, 'left' keeps all rows on the left, and adds columns (with possible missing values)
                 'right' is similar with self and other swapped.
 
-        inplace: boolean 
-            do not copy the left table 
+        inplace: boolean
+            do not copy the left table
 
         Returns
         -------
@@ -2412,7 +2414,7 @@ class SimpleTable(object):
             left_on, right_on = right_on, left_on
         else:
             raise ValueError('join type not supported: {}, only left and right'.format(how))
-        
+
         right_keys = list(right.keys())
         left_keys = list(left.keys())
         for name in right_keys:
@@ -2423,9 +2425,9 @@ class SimpleTable(object):
         N_other = len(right)
         left_on = left_on or on
         right_on = right_on or on
-        
+
         right_keys = [k for k in right_keys if not k == right_on]
-        
+
         print(right_keys, left_keys)
         if left_on is None and right_on is None:
             for name in right_keys:
@@ -2549,12 +2551,12 @@ class SimpleTable(object):
 
     def rename_columns(self, **mapping):
         """ Rename the fields from a flexible-datatype ndarray or recarray.
-    
+
         Parameters
         ----------
         mapping : dictionary
             Dictionary mapping old field names to their new version.
-        """ 
+        """
         _recarray_rename_fields(self.data, **mapping)
 
     def append_row(self, iterable):
@@ -2608,7 +2610,7 @@ class SimpleTable(object):
 
         p = [self[k] for k in names]
 
-        _names = set([ self.resolve_alias(k) for k in names ])
+        _names = set([self.resolve_alias(k) for k in names])
         self.data = recfunctions.drop_fields(self.data, _names)
         for k in names:
             self._aliases.pop(k, None)
@@ -2658,18 +2660,19 @@ class SimpleTable(object):
             array of the result
         """
         _globals = {}
-        for k in ( list(self.colnames) + list(self._aliases.keys()) ):
+        for k in (list(self.colnames) + list(self._aliases.keys())):
             if k in expr:
                 _globals[k] = self[k]
 
         if exprvars is not None:
-            if (not (hasattr(exprvars, 'keys') & hasattr(exprvars, '__getitem__' ))):
+            try:
+                for k, v in (exprvars.items()):
+                    _globals[k] = v
+            except AttributeError:
                 raise AttributeError("Expecting a dictionary-like as condvars")
-            for k, v in ( exprvars.items() ):
-                _globals[k] = v
 
         # evaluate expression, to obtain the final filter
-        r    = np.empty( self.nrows, dtype=dtype)
+        r = np.empty(self.nrows, dtype=dtype)
         r[:] = eval(expr, _globals, np.__dict__)
 
         return r
@@ -2693,7 +2696,8 @@ class SimpleTable(object):
         result equivalent to :func:`np.where`
 
         """
-        ind = np.where(self.evalexpr(condition, condvars, dtype=bool ), *args, **kwargs)
+        ind = np.where(self.evalexpr(condition, condvars, dtype=bool),
+                       *args, **kwargs)
         return ind
 
     def select(self, fields, indices=None, **kwargs):
@@ -2741,7 +2745,8 @@ class SimpleTable(object):
 
     def selectWhere(self, fields, condition, condvars=None, **kwargs):
         """ Read table data fulfilling the given `condition`.
-            Only the rows fulfilling the `condition` are included in the result.
+            Only the rows fulfilling the `condition` are included in the
+            result.
 
         Parameters
         ----------
@@ -2827,8 +2832,8 @@ class SimpleTable(object):
 
         if fn is None:
             fn = (stats.mean, stats.std,
-                stats.min, stats.max,
-                stats.has_nan)
+                  stats.min, stats.max,
+                  stats.has_nan)
 
         d = OrderedDict()
         d.setdefault('FIELD', [])
@@ -2848,7 +2853,7 @@ class SimpleTable(object):
             for fnk in fn:
                 try:
                     val = fnk(self[k])
-                except:
+                except Exception:
                     val = fill
                 d[fnk.__name__].append(val)
 
@@ -2898,12 +2903,14 @@ class AstroTable(SimpleTable):
 
     def set_RA(self, val):
         """ Set the column that defines RA coordinates """
-        assert(val in self), 'column name {} not found in the table'.format(val)
+        msg = 'column name {} not found in the table'.format(val)
+        assert(val in self), msg
         self._ra_name = val
 
     def set_DEC(self, val):
         """ Set the column that defines DEC coordinates """
-        assert(val in self), 'column name {} not found in the table'.format(val)
+        msg = 'column name {} not found in the table'.format(val)
+        assert(val in self), msg
         self._dec_name = val
 
     def get_RA(self, degree=True):
@@ -2939,7 +2946,8 @@ class AstroTable(SimpleTable):
                 raise Exception('RA Format not understood')
 
     def info(self):
-        s = "\nTable: {name:s}\n       nrows={s.nrows:d}, ncols={s.ncols:d}, mem={size:s}"
+        s = "\nTable: {name:s}\n"
+        s += "       nrows={s.nrows:d}, ncols={s.ncols:d}, mem={size:s}"
         s = s.format(name=self.header.get('NAME', 'Noname'), s=self,
                      size=pretty_size_print(self.nbytes))
 
@@ -2952,17 +2960,20 @@ class AstroTable(SimpleTable):
 
         vals = [(k, self._units.get(k, ''), self._desc.get(k, ''))
                 for k in self.colnames]
-        lengths = [(len(k), len(self._units.get(k, '')), len(self._desc.get(k, '')))
+        lengths = [(len(k),
+                    len(self._units.get(k, '')),
+                    len(self._desc.get(k, '')))
                    for k in self.colnames]
         lengths = list(map(max, (zip(*lengths))))
 
         if (self._ra_name is not None) & (self._dec_name is not None):
-            s += "\nPosition coordinate columns: {0}, {1}\n".format(self._ra_name,
-                                                                    self._dec_name)
+            s += "\nPosition coordinate columns: {0}, {1}\n"\
+                    .format(self._ra_name, self._dec_name)
 
         s += '\nColumns:\n'
 
-        fmt = '\t{{0:{0:d}s}} {{1:{1:d}s}} {{2:{2:d}s}}\n'.format(*(k + 1 for k in lengths))
+        fmt = '\t{{0:{0:d}s}} {{1:{1:d}s}} {{2:{2:d}s}}\n'
+        fmt = fmt.format(*(k + 1 for k in lengths))
         for k, u, c in vals:
             s += fmt.format(k, u, c)
 
@@ -3012,7 +3023,7 @@ class AstroTable(SimpleTable):
         if (self._ra_name is None) or (self._dec_name is None):
             raise AttributeError('Coordinate columns not set.')
 
-        ra0  = self.get_RA()
+        ra0 = self.get_RA()
         dec0 = self.get_DEC()
         return AstroHelpers.conesearch(ra0, dec0, ra, dec, r, outtype=outtype)
 
@@ -3044,17 +3055,20 @@ class AstroTable(SimpleTable):
             indices or conditional sequence of matching values
         """
 
-        assert( (self._ra_name is not None) & (self._dec_name is not None) ), 'Coordinate columns not set.'
+        assert((self._ra_name is not None)
+               & (self._dec_name is not None)), 'Coordinate columns not set.'
 
-        ra0  = self.get_RA()
+        ra0 = self.get_RA()
         dec0 = self.get_DEC()
-        ind = (ra0 >= ramin) & (ra0 <= ramax) & (dec0 >= decmin) & (dec0 <= decmax)
+        ind = ((ra0 >= ramin) & (ra0 <= ramax)
+               & (dec0 >= decmin) & (dec0 <= decmax))
         if outtype <= 2:
             return ind
         else:
             return np.where(ind)
 
-    def where(self, condition=None, condvars=None, cone=None, zone=None, **kwargs):
+    def where(self, condition=None, condvars=None, cone=None, zone=None,
+              **kwargs):
         """ Read table data fulfilling the given `condition`.
         Only the rows fulfilling the `condition` are included in the result.
 
@@ -3074,10 +3088,13 @@ class AstroTable(SimpleTable):
         """
         if cone is not None:
             if len(cone) != 3:
-                raise ValueError('Expecting cone keywords as a triplet (ra, dec, r)')
+                msg = 'Expecting cone keywords as a triplet: (ra, dec, r)'
+                raise ValueError(msg)
         if zone is not None:
             if len(zone) != 4:
-                raise ValueError('Expecting zone keywords as a tuple of 4 elements (ramin, ramax, decmin, decmax)')
+                msg = 'Expecting zone keywords as a tuple of 4 elements:'\
+                        '(ramin, ramax, decmin, decmax)'
+                raise ValueError(msg)
 
         if condition is not None:
             ind = super(self.__class__, self).where(condition, **kwargs)
@@ -3091,7 +3108,8 @@ class AstroTable(SimpleTable):
         if (cone is not None) and (zone is not None):  # cone + zone
             ra, dec, r = cone
             ind, d = self.coneSearch(ra, dec, r, outtype=2)
-            ind = ind & self.zoneSearch(zone[0], zone[1], zone[2], zone[3], outtype=2)
+            ind = ind & self.zoneSearch(zone[0], zone[1], zone[2], zone[3],
+                                        outtype=2)
             d = d[ind]
             blobs.append(d)
         elif (cone is not None):
@@ -3100,20 +3118,27 @@ class AstroTable(SimpleTable):
             ind = ind & _ind.astype(bool)
             blobs.append(d[ind])
         elif (zone is not None):
-            _ind = self.zoneSearch(zone[0], zone[1], zone[2], zone[3], outtype=1)
+            _ind = self.zoneSearch(zone[0], zone[1], zone[2], zone[3],
+                                   outtype=1)
             ind = ind & _ind
 
         ind = np.where(ind)[0]
 
         return ind, blobs
 
-    def selectWhere(self, fields, condition=None, condvars=None, cone=None, zone=None, **kwargs):
+    def selectWhere(self, fields, condition=None, condvars=None, cone=None,
+                    zone=None, **kwargs):
         """ Read table data fulfilling the given `condition`.
-            Only the rows fulfilling the `condition` are included in the result.
-            conesearch is also possible through the keyword cone formatted as (ra, dec, r)
-            zonesearch is also possible through the keyword zone formatted as (ramin, ramax, decmin, decmax)
+        Only the rows fulfilling the `condition` are included in the
+        result.
 
-            Combination of multiple selections is also available.
+        conesearch is also possible through the keyword cone formatted as
+        (ra, dec, r)
+
+        zonesearch is also possible through the keyword zone formatted as
+        (ramin, ramax, decmin, decmax)
+
+        Combination of multiple selections is also available.
         """
         ind, blobs = self.where(condition, condvars, cone, zone, **kwargs)
         tab = self.select(fields, indices=ind)
@@ -3175,112 +3200,3 @@ class stats(object):
             return np.nanmedian(v)
         except AttributeError:
             return np.percentile(v, 50)
-
-
-'''
-# =============================================================================
-# Adding some plotting functions
-# =============================================================================
-
-try:
-    import pylab as plt
-
-    def plot_function(tab, fn, *args, **kwargs):
-        """ Generate a plotting method of tab from a given function
-
-        Parameters
-        ----------
-        tab: SimpleTable instance
-            table instance
-
-        fn: str or callable
-            if str, will try a function in matplotlib
-            if callable, calls the function directly
-
-        xname: str
-            expecting a column name from the table
-
-        yname: str, optional
-            if provided, another column to use for the plot
-
-        onlywhere: sequence or str, optional
-            if provided, selects only data with this condition
-            the condition can be a ndarray slice or a string.
-            When a string is given, the evaluation calls :func:`SimpleTable.where`
-
-        ax: matplotlib.Axes instance
-            if provided make sure it uses the axis to do the plots if a mpl
-            function is used.
-
-        Returns
-        -------
-        r: object
-            anything returned by the called function
-        """
-        if not hasattr(fn, '__call__'):
-            ax = kwargs.pop('ax', None)
-            if ax is None:
-                ax = plt.gca()
-            _fn = getattr(ax, fn, None)
-            if _fn is None:
-                raise AttributeError('function neither callable or found in matplotlib')
-        else:
-            _fn = fn
-
-        onlywhere = kwargs.pop('onlywhere', None)
-        if type(onlywhere) in basestring:
-            select = tab.where(onlywhere)
-        else:
-            select = onlywhere
-
-        _args = ()
-        for a in args:
-            if (hasattr(a, '__iter__')):
-                try:
-                    b = tab[a]
-                    if select is not None:
-                        b = b.compress(select)
-                    if (len(b.dtype) > 1):
-                        b = list((b[k] for k in b.dtype.names))
-                    _args += (b, )
-                except Exception as e:
-                    print(e)
-                    _args += (a, )
-            else:
-                _args += (a, )
-
-        return _fn(*_args, **kwargs)
-
-    def attached_function(fn, doc=None, errorlevel=0):
-        """ eclare a function as a method to the class table"""
-
-        def _fn(self, *args, **kwargs):
-            try:
-                return plot_function(self, fn, *args, **kwargs)
-            except Exception as e:
-                if errorlevel < 1:
-                    pass
-                else:
-                    raise e
-
-        if doc is not None:
-            _fn.__doc__ = doc
-
-        return _fn
-
-    SimpleTable.plot_function = plot_function
-    SimpleTable.plot = attached_function('plot', plt.plot.__doc__)
-    SimpleTable.hist = attached_function('hist', plt.hist.__doc__)
-    SimpleTable.hist2d = attached_function('hist2d', plt.hist2d.__doc__)
-    SimpleTable.hexbin = attached_function('hexbin', plt.hexbin.__doc__)
-    SimpleTable.scatter = attached_function('scatter', plt.scatter.__doc__)
-
-    # newer version of matplotlib
-    if hasattr(plt, 'violinplot'):
-        SimpleTable.violinplot = attached_function('violinplot', plt.violinplot.__doc__)
-    if hasattr(plt, 'boxplot'):
-        SimpleTable.boxplot = attached_function('boxplot', plt.boxplot.__doc__)
-
-except Exception as e:
-    print(e)
-'''
