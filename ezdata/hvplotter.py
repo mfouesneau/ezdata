@@ -3,7 +3,7 @@ Using Holoview and datashader to do some plots with Matplotlib
 
 By default, holoview uses Bokeh. However, I personally do not see Bokeh capable
 of publishable quality plots. This is probably because of my limited knowledge
-of it. 
+of it.
 
 As a result, I created this collection of plotting routines with holoview using
 matplotlib instead. This approach is very similar to `hvplot`.
@@ -22,7 +22,7 @@ import numpy as np
 import datashader
 from .plotter import Plotter
 
-from holoviews.plotting.util import process_cmap
+# from holoviews.plotting.util import process_cmap
 # Returns a palette
 
 
@@ -53,7 +53,7 @@ def get_doc_from(name, obj=plt):
     return deco
 
 
-def get_hv_canvas(dataframe, xname, yname, 
+def get_hv_canvas(dataframe, xname, yname,
                   x_range=None, y_range=None,
                   shape=256):
     """ Holoview Canvas definition common to many plots
@@ -109,7 +109,6 @@ def _imshow_hv_map(agg, extent=None, **kwargs):
                       extent=extent, aspect='auto', **kwargs)
 
 
-
 def hv_scatter(dataframe, xname, yname,
                x_range=None, y_range=None, shape=256,
                # how='linear',
@@ -137,7 +136,7 @@ def hv_scatter(dataframe, xname, yname,
 
     try:
         agg = canvas.points(dataframe.to_pandas(), xname, yname, agg=what)
-    except:
+    except Exception:
         agg = canvas.points(dataframe, xname, yname, agg=what)
 
     # img = tf.shade(agg, how=how, cmap=cmap)
@@ -173,13 +172,14 @@ def hv_plot(dataframe, xname, yname,
 
     try:
         agg = canvas.points(dataframe.to_pandas(), xname, yname, agg=what)
-    except:
+    except Exception:
         agg = canvas.points(dataframe, xname, yname, agg=what)
 
     return _imshow_hv_map(agg, extent=extent, **kwargs)
 
 
-def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwargs={}, diag_kwargs={}):
+def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None,
+              lower_kwargs={}, diag_kwargs={}):
     """ Corner plot
     """
     if varnames is None:
@@ -188,21 +188,22 @@ def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwar
         figsize = (3 * len(varnames), 3 * len(varnames))
     if labels is None:
         labels = varnames
-    
-    label_maps = {varname:label for varname, label in zip(varnames, labels)}
+
+    label_maps = {varname: label for varname, label in zip(varnames, labels)}
 
     plt.figure(figsize=figsize)
     pp = HvPlotter(df).pairplot(keys=varnames, labels=labels)
-    kwargs = dict(only1d=True, bins=shape, edgecolor='k', facecolor='None', histtype='step')
+    kwargs = dict(only1d=True, bins=shape, edgecolor='k',
+                  facecolor='None', histtype='step')
     kwargs.update(diag_kwargs)
-    r = pp.map_diag('hist', **kwargs)
+    pp.map_diag('hist', **kwargs)
     plt.setp(plt.gcf().get_axes()[-1].get_xticklabels(), visible=True)
     kwargs = dict(cmap=plt.cm.hot, shape=shape)
     kwargs.update(lower_kwargs)
-    pp.map_lower('scatter', **kwargs) #, norm=colors.LogNorm());
+    pp.map_lower('scatter', **kwargs)
     # BUG
     plt.setp(pp.axes[-1][-1].get_xticklabels(), visible=True)
-    corner_colorbar();
+    corner_colorbar()
 
     # Quantiles
     for num, (kx, labelx) in enumerate(zip(varnames, labels)):
@@ -217,8 +218,9 @@ def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwar
         title = "{0} = {1}".format(labelx, title)
         ax.set_title(title, fontsize='medium')
         ylim = ax.get_ylim()
-        ax.vlines([q_16, q_50, q_84], ylim[0], ylim[1], color='k', linestyle='--')
-    
+        ax.vlines([q_16, q_50, q_84], ylim[0], ylim[1],
+                  color='k', linestyle='--')
+
     for axes in pp.axes:
         axes[0].set_ylabel(label_maps.get(axes[0].get_ylabel(), ''))
     for ax in pp.axes[-1][-len(varnames):]:
@@ -226,18 +228,18 @@ def hv_corner(df, varnames=None, shape=32, labels=None, figsize=None, lower_kwar
     return pp
 
 
-
-
 class HvPlotter(Plotter):
-    """
-    A wrapper around plotting functions and DataFrame adding Holoview interfaces
+    """ A plotting wrapper around Holoview interfaces
 
-    This should also work with pure dictionary objects.
-    all plotting functions are basically proxies to matplotlib in which
-    arguments can be named columns from the data (not necessary) and each method handles a
-    `ax` keyword to specify a Axes instance to use (default using :func:`plt.gca`)
+    This should also work with pure dictionary objects.  all plotting functions
+    are basically proxies to matplotlib in which arguments can be named columns
+    from the data (not necessary) and each method handles a `ax` keyword to
+    specify a Axes instance to use (default using :func:`plt.gca`)
+
     .. code-block:: python
-        Plotter(df).groupby('class').plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
+        Plotter(df).groupby('class')\
+                   .plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
+
     Attributes
     ----------
     data: dict-like structure
@@ -252,12 +254,13 @@ class HvPlotter(Plotter):
         (do not exists if no plotting function was called)
     """
     def get(self, *args):
-      data = self.data
-      try:
-        df = {name: self._value_from_data(name) for name in args}
-        return SimpleTable(df)
-      except:
-        return data
+        from .simpletable import SimpleTable
+        data = self.data
+        try:
+            df = {name: self._value_from_data(name) for name in args}
+            return SimpleTable(df)
+        except Exception:
+            return data
 
     @get_doc_from(hv_scatter)
     def scatter(self, xname, yname, *args, **kwargs):
@@ -272,8 +275,10 @@ class HvPlotter(Plotter):
         return hv_plot(data, xname, yname, *args, **kwargs)
 
     @get_doc_from(hv_corner)
-    def corner(self, df, varnames=None, shape=32, labels=None, figsize=None, lower_kwargs={}, diag_kwargs={}):
-        return hv_corner(df, varnames, shape, labels, figsize, lower_kwargs, diag_kwargs)
+    def corner(self, df, varnames=None, shape=32, labels=None,
+               figsize=None, lower_kwargs={}, diag_kwargs={}):
+        return hv_corner(df, varnames, shape, labels, figsize,
+                         lower_kwargs, diag_kwargs)
 
     line = plot
 
@@ -284,9 +289,9 @@ def corner_colorbar(*args, **kwargs):
     orientation = kwargs.get('orientation', 'vertical')
     ax = kwargs.get('ax', None)
     cax = kwargs.pop('cax', None)
-    
+
     levels = 1.0 - np.exp(-0.5 * np.arange(0.5, 2.1, 0.5) ** 2)
-    
+
     if (ax is None) and (cax is None):
         if orientation == 'vertical':
             cax = plt.axes([0.8, 0.5, 0.03, 0.3])
@@ -303,19 +308,21 @@ def corner_colorbar(*args, **kwargs):
             denorm = (vmax - vmin) * val + vmin
             cax.hlines(denorm, xlim[0], xlim[1], 'w', lw=3)
             cax.hlines(denorm, xlim[0], xlim[1], 'k')
-            cax.text(xlim[0], denorm, r'{0:d}$\,\sigma$    '.format(k), ha='right', va='center')
+            cax.text(xlim[0], denorm, r'{0:d}$\,\sigma$    '.format(k),
+                     ha='right', va='center')
     else:
         ylim = cax.get_ylim()
         for k, val in enumerate(levels[1:][::-1], 1):
             denorm = (vmax - vmin) * val + vmin
             cax.vlines(denorm, ylim[0], ylim[1], 'w', lw=3)
             cax.vlines(denorm, ylim[0], ylim[1], 'k')
-            cax.text(denorm, ylim[1], r'{0:d}$\,\sigma$    '.format(k), ha='center', va='bottom')
+            cax.text(denorm, ylim[1], r'{0:d}$\,\sigma$    '.format(k),
+                     ha='center', va='bottom')
     return cb
 
 
 class logcount(datashader.count):
 
-  @staticmethod
-  def _finalize(bases, **kwargs):
-    return datashader.reductions.xr.DataArray(np.log10(bases[0]), **kwargs)
+    @staticmethod
+    def _finalize(bases, **kwargs):
+        return datashader.reductions.xr.DataArray(np.log10(bases[0]), **kwargs)
