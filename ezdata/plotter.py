@@ -1117,7 +1117,7 @@ class PairGrid(object):
     def _value_from_data(self, key):
         """ Parse a key for existing data in the dataframe. If not found,
         returns the key directly """
-        if type(key) not in basestring:
+        if isinstance(key, basestring):
             return key
         elif key not in self.data:
             if self.allow_expressions:
