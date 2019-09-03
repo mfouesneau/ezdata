@@ -154,7 +154,7 @@ class DictDataFrame(dict):
 
         Parameters
         ----------
-        data : ndarray 
+        data : ndarray
             (structured dtype), list of tuples, dict, or DataFrame
         keys: sequence, optional
             ordered subset of columns to export
@@ -198,7 +198,7 @@ class DictDataFrame(dict):
 
         Parameters
         ----------
-        data : ndarray 
+        data : ndarray
             (structured dtype), list of tuples, dict, or DataFrame
         keys: sequence, optional
             ordered subset of columns to export
@@ -254,9 +254,9 @@ class DictDataFrame(dict):
     def to_dask(self, **kwargs):
         """ Construct a Dask DataFrame
 
-        This splits an in-memory Pandas dataframe into several parts and constructs
-        a dask.dataframe from those parts on which Dask.dataframe can operate in
-        parallel.
+        This splits an in-memory Pandas dataframe into several parts and
+        constructs a dask.dataframe from those parts on which Dask.dataframe
+        can operate in parallel.
 
         Note that, despite parallelism, Dask.dataframe may not always be faster
         than Pandas.  We recommend that you stay with Pandas for as long as
@@ -267,16 +267,17 @@ class DictDataFrame(dict):
         keys: sequence, optional
             ordered subset of columns to export
         npartitions : int, optional
-            The number of partitions of the index to create. Note that depending on
-            the size and index of the dataframe, the output may have fewer
-            partitions than requested.
+            The number of partitions of the index to create. Note that
+            depending on the size and index of the dataframe, the output may
+            have fewer partitions than requested.
         chunksize : int, optional
             The size of the partitions of the index.
         sort: bool
-            Sort input first to obtain cleanly divided partitions or don't sort and
-            don't get cleanly divided partitions
+            Sort input first to obtain cleanly divided partitions or don't sort
+            and don't get cleanly divided partitions
         name: string, optional
-            An optional keyname for the dataframe.  Defaults to hashing the input
+            An optional keyname for the dataframe.  Defaults to hashing the
+            input
 
         Returns
         -------
@@ -354,7 +355,8 @@ class DictDataFrame(dict):
         Parameters
         ----------
         iterable: iterable
-            sequence of lines with the same keys (expecting dict like structure)
+            sequence of lines with the same keys (expecting dict like
+            structure)
 
         Returns
         -------
@@ -365,8 +367,9 @@ class DictDataFrame(dict):
         default_n = 0
         for line in iterable:
             for k in line.keys():
-                d.setdefault(k, [np.atleast_1d(np.nan)] * default_n).append(np.atleast_1d(line[k]))
-        for k,v in dict.items(d):
+                d.setdefault(k, [np.atleast_1d(np.nan)] * default_n)\
+                 .append(np.atleast_1d(line[k]))
+        for k, v in dict.items(d):
             dict.__setitem__(d, k, np.squeeze(np.vstack(v)))
 
         return cls(d)
@@ -374,9 +377,10 @@ class DictDataFrame(dict):
     def __repr__(self):
         txt = 'DataFrame ({0:s})\n'.format(pretty_size_print(self.nbytes))
         try:
-            txt += '\n'.join([str((k, v.dtype, v.shape)) for (k,v) in self.items()])
+            txt += '\n'.join([str((k, v.dtype, v.shape))
+                              for (k, v) in self.items()])
         except AttributeError:
-            txt += '\n'.join([str((k, type(v))) for (k,v) in self.items()])
+            txt += '\n'.join([str((k, type(v))) for (k, v) in self.items()])
         return txt
 
     @property
@@ -390,7 +394,7 @@ class DictDataFrame(dict):
         try:
             return dict.__getitem__(self, k)
         except Exception:
-            return self.__class__({a:v[k] for a, v in self.items()})
+            return self.__class__({a: v[k] for a, v in self.items()})
 
     @property
     def dtype(self):
@@ -531,9 +535,13 @@ class DictDataFrame(dict):
 
         if caseless:
             _keys = ''.join([k.lower() for k in keys])
-            df = self.__class__(dict( (k,v) for k,v in self.items() if (k.lower() in _keys)))
+            df = self.__class__(dict((k, v)
+                                     for k, v in self.items()
+                                     if (k.lower() in _keys)))
         else:
-            df = self.__class__(dict( (k,v) for k,v in self.items() if k in keys))
+            df = self.__class__(dict((k, v)
+                                     for k, v in self.items()
+                                     if k in keys))
         return df
 
     def pickle_dump(self, fname):
@@ -593,7 +601,8 @@ class DictDataFrame(dict):
         """ Plotter instance related to this dataset.
         Requires plotter add-on to work """
         if Plotter is None:
-            raise AttributeError('the add-on was not found, this property is not available')
+            msg = 'the add-on was not found, this property is not available'
+            raise AttributeError(msg)
         else:
             return Plotter(self)
 
@@ -670,7 +679,7 @@ class DictDataFrame(dict):
         dtypes = (self.dtype[k] for k in keys)
         fmt = delimiter.join(['%' + k.kind.lower() for k in dtypes])
 
-        #Monkey patch to help unicode/bytes/str mess
+        # Monkey patch to help unicode/bytes/str mess
         if PY3:
             fmt = fmt.replace('u', 's')
 
@@ -678,7 +687,8 @@ class DictDataFrame(dict):
                    header=header + hdr, fmt=fmt,
                    comments='', **kwargs)
 
-    def join(self, key, other, key_other=None, columns_other=None, prefix=None):
+    def join(self, key, other, key_other=None, columns_other=None,
+             prefix=None):
         """
         Experimental joining of structures, (equivalent to SQL left outer join)
         Example:
@@ -703,7 +713,7 @@ class DictDataFrame(dict):
         columns_other: tuple, optional
             column names to add to the dataframe (default: all fields)
         prefix: str, optional
-            add a prefix to the new column 
+            add a prefix to the new column
 
         Returns
         -------
@@ -721,12 +731,14 @@ class DictDataFrame(dict):
         if prefix is None:
             for name in columns_other:
                 if name in self:
-                    raise ValueError("Field {0:s} already exists.".format(name))
+                    msg = "Field {0:s} already exists.".format(name)
+                    raise ValueError(msg)
             else:
                 for name in columns_other:
-                    new_name = '{0:s}{1:s}'.format(prefix, name) 
+                    new_name = '{0:s}{1:s}'.format(prefix, name)
+                    msg = "Field {0:s} already exists.".format(new_name)
                     if new_name in self:
-                        raise ValueError("Field {0:s} already exists.".format(new_name))
+                        raise ValueError(msg)
 
         # generate index
         key = self[key]
@@ -750,7 +762,7 @@ class DictDataFrame(dict):
 
         dtypes = other.dtype
         for column_name in columns_other:
-            dtype = dtypes[column_name] 
+            dtype = dtypes[column_name]
             if np.issubdtype(dtype, np.inexact):
                 data = np.zeros(N, dtype=dtype)
                 data[:] = np.nan
@@ -760,7 +772,8 @@ class DictDataFrame(dict):
                 values = other[column_name][from_indices]
                 data[to_indices] = values
                 data.mask[to_indices] = np.ma.masked
-                if not np.ma.is_masked(data): # forget the mask if we do not need it
+                if not np.ma.is_masked(data):
+                    # forget the mask if we do not need it
                     data = data.data
             if prefix:
                 new_name = '{0:s}{1:s}'.format(prefix, column_name)
@@ -827,7 +840,7 @@ def _df_multigroupby(ary, *args):
     val = ary[args[0]]
     ind = sorted(zip(val, range(len(val))), key=lambda x: x[0])
 
-    for k, grp in itertools.groupby(ind, lambda x:x[0]):
+    for k, grp in itertools.groupby(ind, lambda x: x[0]):
         index = [v[1] for v in grp]
         d = ary.__class__({a: np.array([b[i] for i in index])
                            for a, b in ary.items()})
@@ -907,7 +920,8 @@ def evalexpr(data, expr, exprvars=None, dtype=float):
 
     if exprvars is not None:
         if not hasattr(exprvars, 'items'):
-            raise AttributeError("Expecting a dictionary-like as condvars with an `items` method")
+            msg = "Expecting a dict-like as condvars with an `items` method"
+            raise AttributeError(msg)
         for k, v in (exprvars.items()):
             _globals[k] = v
 
