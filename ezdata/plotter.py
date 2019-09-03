@@ -19,11 +19,13 @@ Examples
     >> g.plot('CRA', 'CDEC')
     >> g.colorbar().set_label('BRK')
 
-Multiple groups can be done as well. (Caution, the `facet` option is not robust)
+Multiple groups can be done as well. (Caution, the `facet` option is not
+robust)
 
 .. code-block::python
 
-    >> g = p.groupby('BRK', facet=True, sharex=True, sharey=True).groupby('FLD')
+    >> g = p.groupby('BRK', facet=True, sharex=True, sharey=True)\
+            .groupby('FLD')
     >> g.plot('CRA', 'CDEC', 'o')
 
 .. note::
@@ -38,6 +40,12 @@ Multiple groups can be done as well. (Caution, the `facet` option is not robust)
 from __future__ import (absolute_import, division, print_function)
 
 import sys
+import pylab as plt
+import matplotlib as mpl
+import numpy as np
+import itertools
+from matplotlib.ticker import MaxNLocator
+
 PY3 = sys.version_info[0] > 2
 
 if PY3:
@@ -45,14 +53,9 @@ if PY3:
 else:
     basestring = (str, unicode)
 
-import pylab as plt
-import matplotlib as mpl
-import numpy as np
-import itertools
-from matplotlib.ticker import MaxNLocator
 
-
-__all__ = ['Group', 'Plotter', 'create_common_cbar', 'colorify', 'evalexpr', 'create_common_legend']
+__all__ = ['Group', 'Plotter', 'create_common_cbar', 'colorify',
+           'evalexpr', 'create_common_legend']
 
 
 def get_doc_from(name, obj=plt):
@@ -85,7 +88,7 @@ def _groupby(data, key):
     """ create an iterator which returns (key, DataFrame) grouped by each
     value of key(value) """
     for k, index in _arg_groupby(data, key):
-        d = {a: b[index] for a,b in data.items()}
+        d = {a: b[index] for a, b in data.items()}
         yield k, data.__class__(d)
 
 
@@ -93,7 +96,7 @@ def _arg_groupby(data, key):
     """ create an iterator which returns (key, index) grouped by each
     value of key(value) """
     val = data[key]
-    ind = sorted(zip(val, range(len(val))), key=lambda x:x[0])
+    ind = sorted(zip(val, range(len(val))), key=lambda x: x[0])
 
     for k, grp in itertools.groupby(ind, lambda x: x[0]):
         index = [k[1] for k in grp]
@@ -101,17 +104,18 @@ def _arg_groupby(data, key):
 
 
 class Group(object):
-    """ Group multiple plotter instances into one container. This offers any function
-    of :class:`Plotter` through an implicit loop of any method It allows for
-    instance to generate multiple plots on the same axes or even facet plot
-    (one per group).
+    """ Group multiple plotter instances into one container. This offers any
+    function of :class:`Plotter` through an implicit loop of any method It
+    allows for instance to generate multiple plots on the same axes or even
+    facet plot (one per group).
 
     .. code-block:: python
 
         >> g = Plotter(df).groupby('class')
         >> g.set_options(facet=True, ncols=2, projection='aitoff')
         # which is equivalent to
-        >> g = Plotter(df).groupby('class', facet=True, ncols=2, projection='aitoff')
+        >> g = Plotter(df)\
+                .groupby('class', facet=True, ncols=2, projection='aitoff')
         >> g.plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
 
     Attributes
@@ -367,8 +371,8 @@ class Group(object):
             name of the method to call from each object
         cyclekw: dict
             keyword arguments that calls need to cycle over per object.
-            Each element in this dictionary is expected to be a sequence and one
-            element of each will be used per call. It will use
+            Each element in this dictionary is expected to be a sequence and
+            one element of each will be used per call. It will use
             :func:`itertools.cycle`. (None elements are filtered)
             cyclenames = 'linestyles', 'colors', 'markers'
         kw: dict
@@ -383,10 +387,10 @@ class Group(object):
         cyclenames = 'linestyles', 'colors', 'markers'
 
         _cyclekw = {k: itertools.cycle(cyclekw[k])
-                    for k in cyclenames if cyclekw[k] is not None }
+                    for k in cyclenames if cyclekw[k] is not None}
 
         def next_cyclekw():
-            a = {k[:-1]:next(v) for k, v in _cyclekw.items()}
+            a = {k[:-1]: next(v) for k, v in _cyclekw.items()}
             return a
 
         def deco(*args, **kwargs):
@@ -419,8 +423,8 @@ class Group(object):
         axes: sequence
             list of axes, one per call
         cyclekw: dict
-            keyword arguments that calls need to cycle over per object.
-            Each element in this dictionary is expected to be a sequence and one
+            keyword arguments that calls need to cycle over per object.  Each
+            element in this dictionary is expected to be a sequence and one
             element of each will be used per call. It will use
             :func:`itertools.cycle`. (None elements are filtered)
             cyclenames = 'linestyles', 'colors', 'markers'
@@ -435,10 +439,10 @@ class Group(object):
         cyclenames = 'linestyles', 'colors', 'markers'
 
         _cyclekw = {k: itertools.cycle(cyclekw[k])
-                    for k in cyclenames if cyclekw[k] is not None }
+                    for k in cyclenames if cyclekw[k] is not None}
 
         def next_cyclekw():
-            a = {k[:-1]:next(v) for k, v in _cyclekw.items()}
+            a = {k[:-1]: next(v) for k, v in _cyclekw.items()}
             return a
 
         def deco(*args, **kwargs):
@@ -475,8 +479,9 @@ class Group(object):
                     setattr(g, k, v)
             return g
         else:
-            raise RuntimeError('Cannot add {0} type objects to {1} instance'.format(other.__class__.__name__,
-                               self.__class__.__name__))
+            raise RuntimeError('Cannot add {0} type objects to {1} instance'
+                               .format(other.__class__.__name__,
+                                       self.__class__.__name__))
 
     def pairplot(self, keys=None, **kwargs):
         """ This is a high-level interface for PairGrid
@@ -494,7 +499,8 @@ class Group(object):
         """
         if keys is None:
             keys = self.data.keys()
-        return PairGrid(self, keys, allow_expressions=self.allow_expressions, **kwargs)
+        return PairGrid(self, keys, allow_expressions=self.allow_expressions,
+                        **kwargs)
 
 
 class Plotter(object):
@@ -503,12 +509,14 @@ class Plotter(object):
     This should also work with pure dictionary objects.
 
     all plotting functions are basically proxies to matplotlib in which
-    arguments can be named columns from the data (not necessary) and each method handles a
-    `ax` keyword to specify a Axes instance to use (default using :func:`plt.gca`)
+    arguments can be named columns from the data (not necessary) and each
+    method handles a `ax` keyword to specify a Axes instance to use (default
+    using :func:`plt.gca`)
 
     .. code-block:: python
 
-        Plotter(df).groupby('class').plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
+        Plotter(df).groupby('class')\
+                   .plot('RA', 'Dec', 'o', alpha=0.5, mec='None')
 
     Attributes
     ----------
@@ -534,17 +542,18 @@ class Plotter(object):
 
     def set_options(self, **kwargs):
         self.label = kwargs.get('label', self.label)
-        self.allow_expressions = kwargs.get('allow_expressions', self.allow_expressions)
+        self.allow_expressions = kwargs.get('allow_expressions',
+                                            self.allow_expressions)
         self.show = kwargs.get('show', self.show)
         return self
 
     def _ensure_data_type(self, data):
-        """ Make sure the data is compatible with a dictionary like interface """
+        """ Make sure data is compatible with a dictionary like interface """
         if isinstance(data, dict) or hasattr(data, '__getitem__'):
             return data
 
         # assuming array
-        data = {e:k for e, k in enumerate(np.asarray(data).T)}
+        data = {e: k for e, k in enumerate(np.asarray(data).T)}
         return data
 
     @property
@@ -560,7 +569,7 @@ class Plotter(object):
             if self.allow_expressions:
                 try:
                     return evalexpr(self.data, key)
-                except:
+                except Exception:
                     pass
             return key
         else:
@@ -656,7 +665,7 @@ class Plotter(object):
         if ax is None:
             ax = plt.gca()
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = self.label
 
         return ax.scatter(_x, _y, c=_c, s=_s, *args, **kwargs)
@@ -670,11 +679,11 @@ class Plotter(object):
             ax = plt.gca()
         self.axes = ax
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = self.label
 
         return ax.plot(_x, _y, *args, **kwargs)
-    
+
     @get_doc_from('bar')
     def bar(self, x, y, *args, **kwargs):
         _x = self._value_from_data(x)
@@ -684,11 +693,11 @@ class Plotter(object):
             ax = plt.gca()
         self.axes = ax
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = self.label
 
         return ax.bar(_x, _y, *args, **kwargs)
-    
+
     @get_doc_from('step')
     def step(self, x, y, *args, **kwargs):
         _x = self._value_from_data(x)
@@ -698,7 +707,7 @@ class Plotter(object):
             ax = plt.gca()
         self.axes = ax
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = self.label
 
         return ax.step(_x, _y, *args, **kwargs)
@@ -712,7 +721,7 @@ class Plotter(object):
             ax = plt.gca()
         self.axes = ax
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = str(self.label)
 
         ind = np.isfinite(_x)
@@ -731,13 +740,14 @@ class Plotter(object):
             ax = plt.gca()
         self.axes = ax
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = self.label
 
         ind = np.isfinite(_x) & np.isfinite(_y)
         _w = kwargs.pop('weights', None)
         if _w is not None:
-            return ax.hist2d(_x[ind], _y[ind], weights=_w[ind], *args, **kwargs)
+            return ax.hist2d(_x[ind], _y[ind], weights=_w[ind],
+                             *args, **kwargs)
         else:
             return ax.hist2d(_x[ind], _y[ind], *args, **kwargs)
 
@@ -751,7 +761,7 @@ class Plotter(object):
             ax = plt.gca()
         self.axes = ax
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = self.label
 
         if _C is not None:
@@ -769,7 +779,7 @@ class Plotter(object):
         if ax is None:
             ax = plt.gca()
         self.axes = ax
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['labels'] = dataset
         return ax.violinplot(d, **kwargs)
 
@@ -781,7 +791,7 @@ class Plotter(object):
         if ax is None:
             ax = plt.gca()
         self.axes = ax
-        if not 'labels' in kwargs:
+        if 'labels' not in kwargs:
             kwargs['labels'] = dataset
         return ax.boxplot(d, **kwargs)
 
@@ -843,7 +853,7 @@ class Plotter(object):
             ax = plt.gca()
         self.axes = ax
 
-        if not 'label' in kwargs:
+        if 'label' not in kwargs:
             kwargs['label'] = self.label
 
         defaults = dict(marker='o', linestyle='None')
@@ -855,8 +865,9 @@ class Plotter(object):
         if isinstance(other, self.__class__):
             return Group([self, other])
         else:
-            raise RuntimeError('Cannot add {0} type objects to {1} instance'.format(other.__class__.__name__,
-                               self.__class__.__name__))
+            raise RuntimeError('Cannot add {0} type objects to {1} instance'
+                               .format(other.__class__.__name__,
+                                       self.__class__.__name__))
 
     def pivot_plot(self, key1, key2, plotfn, plotkw={}, **kwargs):
         """ generate a multiple plots ordered according to 2 keys
@@ -869,7 +880,8 @@ class Plotter(object):
             key along the y-axis
         plotfn: callable
             the plotting function
-            This function signature must take a dataset and manage an `ax` keyword
+            This function signature must take a dataset and manage an `ax`
+            keyword
             > plotfn(data, ax=ax, **plotkw)
         plotkw: dict
             optional keywords to pass to the plotting function
@@ -885,10 +897,9 @@ class Plotter(object):
         grp = self.aggregate(lambda x: x, (key1, key2))
 
         sx = {k[0] for k in grp}
-        sx = {k:e for e, k in enumerate(sx)}
+        sx = {k: e for e, k in enumerate(sx)}
         sy = {k[1] for k in grp}
-        sy = {k:e for e, k in enumerate(sy)}
-        #print(sx, sy)
+        sy = {k: e for e, k in enumerate(sy)}
 
         defaults = dict(sharex=True, sharey=True)
         defaults.update(**kwargs)
@@ -898,12 +909,14 @@ class Plotter(object):
         for (idx1, idx2, data) in grp:
             e1, e2 = sx[idx1], sy[idx2]
             plotfn(data, ax=_axes[e1, e2], **plotkw)
-            _axes[e1,e2].set_xlabel('')
-            _axes[e1,e2].set_ylabel('')
+            _axes[e1, e2].set_xlabel('')
+            _axes[e1, e2].set_ylabel('')
 
         for ax in axes.ravel():
-            plt.setp(ax.get_yticklines() + ax.get_xticklines(), visible=False)
-            plt.setp(ax.get_yticklabels() + ax.get_xticklabels(), visible=False)
+            plt.setp(ax.get_yticklines() + ax.get_xticklines(),
+                     visible=False)
+            plt.setp(ax.get_yticklabels() + ax.get_xticklabels(),
+                     visible=False)
 
         return axes
 
@@ -957,9 +970,9 @@ class Plotter(object):
             nested = False
 
         val = self.data[args[0]]
-        ind = sorted(zip(val, range(len(val))), key=lambda x:x[0])
+        ind = sorted(zip(val, range(len(val))), key=lambda x: x[0])
 
-        for k, grp in itertools.groupby(ind, lambda x:x[0]):
+        for k, grp in itertools.groupby(ind, lambda x: x[0]):
             index = [v[1] for v in grp]
             d = self.data.ary.__class__({a: np.array([b[i] for i in index]) for
                                          a, b in self.data.items()})
@@ -984,20 +997,22 @@ class Plotter(object):
         """
         if keys is None:
             keys = self.data.keys()
-        return PairGrid(self, keys, allow_expressions=self.allow_expressions, **kwargs)
+        return PairGrid(self, keys, allow_expressions=self.allow_expressions,
+                        **kwargs)
 
 
 class PairGrid(object):
     """ Container to Plot pairwise relationships in a dataset.
 
-    By default, this function will create a grid of Axes such that each variable in
-    data will by shared in the y-axis across a single row and in the x-axis across
-    a single column. The diagonal Axes could be treated differently: for instance
-    drawing a plot to show the univariate distribution of the data for the
-    variable in that column.
+    By default, this function will create a grid of Axes such that each
+    variable in data will by shared in the y-axis across a single row and in
+    the x-axis across a single column. The diagonal Axes could be treated
+    differently: for instance drawing a plot to show the univariate
+    distribution of the data for the variable in that column.
 
-    It is also possible to show a subset of variables or plot different variables
-    on the rows and columns. This class works also with Group instances.
+    It is also possible to show a subset of variables or plot different
+    variables on the rows and columns. This class works also with Group
+    instances.
     """
 
     def __init__(self, data, keys, allow_expressions=False, **kwargs):
@@ -1026,7 +1041,9 @@ class PairGrid(object):
         return self
 
     def _check_label_visibility(self):
-        axes = [(ax, lbls) for (ax, lbls) in zip(np.ravel(self.axes), self.axes_dims) if ax._visible]
+        axes = [(ax, lbls)
+                for (ax, lbls) in zip(np.ravel(self.axes), self.axes_dims)
+                if ax._visible]
 
         # All axes but the last line of the grid
         for ax, _ in axes[:-self.shape[1]]:
@@ -1080,9 +1097,12 @@ class PairGrid(object):
             if (yk >= 0):
                 sharey = self.axes[yk, 0]
 
-            ax = plt.subplot(nlines, ncols, k + 1, sharey=sharey, sharex=sharex)
-            ax.xaxis.set_major_locator(MaxNLocator(self.max_n_ticks, prune="both"))
-            ax.yaxis.set_major_locator(MaxNLocator(self.max_n_ticks, prune="both"))
+            ax = plt.subplot(nlines, ncols, k + 1,
+                             sharey=sharey, sharex=sharex)
+            ax.xaxis.set_major_locator(MaxNLocator(self.max_n_ticks,
+                                                   prune="both"))
+            ax.yaxis.set_major_locator(MaxNLocator(self.max_n_ticks,
+                                                   prune="both"))
             if (xk > 0):
                 plt.setp(ax.get_yticklabels(), visible=False)
             else:
@@ -1103,7 +1123,7 @@ class PairGrid(object):
             if self.allow_expressions:
                 try:
                     return evalexpr(self.data, key)
-                except:
+                except Exception:
                     pass
             return key
         else:
@@ -1154,7 +1174,8 @@ class PairGrid(object):
                 if isinstance(fn, basestring):
                     _fn = getattr(d, fn)
                     if _fn is None:
-                        raise AttributeError('No function named {0:s}'.format(fn))
+                        raise AttributeError('No function named {0:s}'
+                                             .format(fn))
                     r.append(_fn(*args, **kwargs))
                 else:
                     r.append(fn(d, *args, **kwargs))
@@ -1189,7 +1210,8 @@ class PairGrid(object):
 
         if only1d:
             for ek, xk in enumerate(self.keys):
-                ax = plt.subplot(nlines, ncols, (ncols + 1) * ek + 1, sharex=self.axes[0][ek])
+                ax = plt.subplot(nlines, ncols, (ncols + 1) * ek + 1,
+                                 sharex=self.axes[0][ek])
                 self.axes[ek, ek] = ax
                 plt.sca(ax)
                 ax.set_visible(True)
@@ -1341,8 +1363,9 @@ def evalexpr(data, expr, exprvars=None, dtype=float):
 
     if exprvars is not None:
         if (not (hasattr(exprvars, 'items'))):
-            raise AttributeError("Expecting a dictionary-like as condvars with an `items` method")
-        for k, v in ( exprvars.items() ):
+            msg = "Expecting a dict-like as condvars with an `items` method"
+            raise AttributeError(msg)
+        for k, v in (exprvars.items()):
             _globals[k] = v
 
     # evaluate expression, to obtain the final filter
@@ -1436,9 +1459,9 @@ def create_common_legend(labels, colors, markers='s', mec=None,
     for lbl, color, m, ls, me, lw in zip(labels, colors, cycle(markers),
                                          cycle(linestyles), cycle(mec),
                                          cycle(linewidths)):
-        l = Line2D(range(2), range(2), marker=m, mec=me, linestyle=ls,
-                   color=color, lw=lw)
-        lines.append(l)
+        line_ = Line2D(range(2), range(2), marker=m, mec=me, linestyle=ls,
+                       color=color, lw=lw)
+        lines.append(line_)
 
     lgd = fig.legend(lines, labels, **defaults)
     plt.draw_if_interactive()
@@ -1479,7 +1502,7 @@ def colorify(data, vmin=None, vmax=None, cmap=plt.cm.Spectral):
     scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=cmap)
     try:
         colors = scalarMap.to_rgba(data)
-    except:
+    except Exception:
         colors = list(map(scalarMap.to_rgba, data))
     scalarMap.set_array(data)
     return colors, scalarMap
