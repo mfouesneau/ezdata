@@ -1086,10 +1086,11 @@ class PairGrid(object):
     def _generate_grid(self):
 
         nlines, ncols = self.shape
+        keys = list(self.keys())
 
         for k in range(nlines * ncols):
             yk, xk = np.unravel_index(k, self.shape)
-            self.axes_dims.append((self.keys[xk], self.keys[yk]))
+            self.axes_dims.append((keys[xk], keys[yk]))
             sharey = None
             sharex = None
             if (xk >= 0):
@@ -1106,11 +1107,11 @@ class PairGrid(object):
             if (xk > 0):
                 plt.setp(ax.get_yticklabels(), visible=False)
             else:
-                ax.set_ylabel(self.keys[yk])
+                ax.set_ylabel(keys[yk])
             if (yk < nlines - 1):
                 plt.setp(ax.get_xticklabels(), visible=False)
             else:
-                ax.set_xlabel(self.keys[xk])
+                ax.set_xlabel(keys[xk])
             ax.set_visible(False)
             self.axes[yk, xk] = ax
 
