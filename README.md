@@ -1,6 +1,6 @@
 # ezData - A Sandbox for simplistic column based data framework. 
 
-> tested with python 2.7, & 3.4, 3.5
+> tested with python 2.7, & 3.4, 3.5, 3.6, 3.7
 >
 > compatible with many existing dataframes: e.g. pandas 
 >
@@ -9,9 +9,9 @@
 
 .. notes::
 
-    * tested with python 2.7, & 3.4
-    * requirements: numpy
+    * requirements: numpy, matplotlib
     * conversion to other formats require the appropriate library.
+    * some additional wrappers around bokeh, plotly and holoviews are in dev.
 
 :author: Morgan Fouesneau
 
