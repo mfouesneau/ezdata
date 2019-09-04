@@ -84,14 +84,6 @@ def get_doc_from(name, obj=plt):
     return deco
 
 
-def _groupby(data, key):
-    """ create an iterator which returns (key, DataFrame) grouped by each
-    value of key(value) """
-    for k, index in _arg_groupby(data, key):
-        d = {a: b[index] for a, b in data.items()}
-        yield k, data.__class__(d)
-
-
 def _arg_groupby(data, key):
     """ create an iterator which returns (key, index) grouped by each
     value of key(value) """
@@ -101,6 +93,14 @@ def _arg_groupby(data, key):
     for k, grp in itertools.groupby(ind, lambda x: x[0]):
         index = [k[1] for k in grp]
         yield k, index
+
+
+def _groupby(data, key):
+    """ create an iterator which returns (key, DataFrame) grouped by each
+    value of key(value) """
+    for k, index in _arg_groupby(data, key):
+        d = {a: b[index] for a, b in data.items()}
+        yield k, data.__class__(d)
 
 
 class Group(object):
@@ -158,6 +158,7 @@ class Group(object):
         self.sharey = False
         self.axes = None
         self.kwargs = {}
+        self._all_against = False
         self.create_common_cbar = create_common_cbar
         self.set_options(**kwargs)
         self.show = plt.show
@@ -226,10 +227,14 @@ class Group(object):
             sequence of colors to encode each group
             if Colormap instance, a cmap attribute will be generated after a
             plot and will refer to the updated instance
+        labels: seq
+            Labels used for each group instead of values
         sharex: bool
             set to share x-axis with all subplots
         sharey: bool
             set to share y-axis with all subplots
+        all_against: bool
+            set if plotting variables against a common one
         kwargs: dict
             any other option will be forwarded to :func:`plt.subplot`
 
@@ -248,6 +253,7 @@ class Group(object):
         sharex = kwargs.pop('sharex', None)
         sharey = kwargs.pop('sharey', None)
         allow_expressions = kwargs.pop('allow_expressions', None)
+        self._all_against = kwargs.pop('all_against', self._all_against)
         if sharex is not None:
             self.sharex = sharex
         if sharey is not None:
@@ -262,7 +268,7 @@ class Group(object):
             self.markers = markers
         if colors is not None:
             self.colors = colors
-            if type(self.colors) in basestring:
+            if isinstance(self.colors, basestring):
                 self.colors = plt.cm.get_cmap(self.colors)
         if linestyles is not None:
             self.linestyles = linestyles
@@ -338,12 +344,18 @@ class Group(object):
         cyclenames = 'linestyles', 'colors', 'markers'
         cyclekw = {k: getattr(self, k) for k in cyclenames}
         if isinstance(self.colors, mpl.colors.Colormap):
-            s = set()
-            for sk in self.seq:
-                s = s.union(set(sk.data[self.title]))
+            if not self._all_against:
+                s = set()
+                for sk in self.seq:
+                    s = s.union(set(sk.data[self.title]))
+            else:
+                s = np.arange(len(self.seq))
             colors, cmap = colorify(s)
             cyclekw['colors'] = colors
             self.cmap = cmap
+        elif self.colors is None:
+            cyclekw['colors'] = plt.rcParams['axes.prop_cycle']\
+                .by_key()['color']
         if self.facet:
             axes = self.make_facets()
             return self.looper_facet_method(self.seq, k, axes, cyclekw=cyclekw)
@@ -658,8 +670,10 @@ class Plotter(object):
     def scatter(self, x, y, c='k', s=20, *args, **kwargs):
         _x = self._value_from_data(x)
         _y = self._value_from_data(y)
-        _c = self._value_from_data(c)
-        _s = self._value_from_data(s)
+        c = kwargs.pop('color', c)
+        _c = np.atleast_2d(self._value_from_data(c))
+        s = kwargs.pop('size', s)
+        _s = np.atleast_2d(self._value_from_data(s))
         ax = kwargs.pop('ax', None)
 
         if ax is None:
@@ -827,6 +841,40 @@ class Plotter(object):
 
         lst = [Plotter(g, label=labels.get(k, k)) for k, g in r]
         return Group(lst, title=key).set_options(**kwargs)
+
+    def all_against(self, key, select=None, labels=None, **kwargs):
+        """ Make individual plots per of all variables against one
+
+        Parameters
+        ----------
+        key: str
+            key on which plotting everything
+
+        select: sequence
+            explicit selection on the groups
+            if a group does not exist, it will be returned empty
+
+        labels: dict
+            set to replace the names by a specific label string during
+            the plot
+
+        Returns
+        -------
+        g: Group instance
+            group of plotters
+        """
+        r = ((other, {key: self.data[key], 'value': self.data[other]})
+             for other in self.data.keys() if other != key)
+
+        if select is not None:
+            grp = dict((k, v) for k, v in r if k in select)
+            r = [(k, grp.get(k, [])) for k in select]
+
+        if labels is None:
+            labels = {}
+
+        lst = [Plotter(g, label=labels.get(k, k)) for k, g in r]
+        return Group(lst, title=key, all_against=True).set_options(**kwargs)
 
     def lagplot(self, x, t=1, **kwargs):
         """
