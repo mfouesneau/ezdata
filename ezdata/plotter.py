@@ -159,11 +159,12 @@ class Group(object):
         self.axes = None
         self.kwargs = {}
         self._all_against = False
+        self._show_facet_titles = True
         self.create_common_cbar = create_common_cbar
         self.set_options(**kwargs)
         self.show = plt.show
 
-    def make_facets(self):
+    def make_facets(self, show_titles=True):
         """ generates multiple subplots
         uses self.ncols as number of columns
         and subplots are also using self.kwargs.
@@ -172,6 +173,9 @@ class Group(object):
         -------
         axes: sequence
             sequence of the axes instance from the subplots
+
+        show_titles: bool
+            set to add the title of the subplot to the group's name
 
         .. see also::
 
@@ -196,7 +200,7 @@ class Group(object):
             ax = plt.subplot(nlines, ncols, k + 1, sharex=sharex,
                              sharey=sharey, **self.kwargs)
             axes.append(ax)
-            if self.seq[k].label is not None:
+            if (self.seq[k].label is not None) and self._show_facet_title:
                 ax.set_title(self.seq[k].label)
             if (self.sharex):
                 if k < (n - ncols):
@@ -254,6 +258,8 @@ class Group(object):
         sharey = kwargs.pop('sharey', None)
         allow_expressions = kwargs.pop('allow_expressions', None)
         self._all_against = kwargs.pop('all_against', self._all_against)
+        self._show_facet_title = kwargs.pop('show_facet_title',
+                                            self._show_facet_title)
         if sharex is not None:
             self.sharex = sharex
         if sharey is not None:
@@ -356,6 +362,8 @@ class Group(object):
         elif self.colors is None:
             cyclekw['colors'] = plt.rcParams['axes.prop_cycle']\
                 .by_key()['color']
+        cc_ = mpl.colors.ColorConverter()
+        cyclekw['colors'] = [cc_.to_rgba(val) for val in cyclekw['colors']]
         if self.facet:
             axes = self.make_facets()
             return self.looper_facet_method(self.seq, k, axes, cyclekw=cyclekw)
@@ -546,17 +554,21 @@ class Plotter(object):
         contains the last axes reference(s) after a plot
         (do not exists if no plotting function was called)
     """
-    def __init__(self, data, label=None, allow_expressions=False):
+    def __init__(self, data, label=None, allow_expressions=False,
+                 update_axis_label=True):
         self.data = data
         self.label = label
         self.allow_expressions = allow_expressions
         self.show = plt.show
+        self.update_axis_label = update_axis_label
+        self.label = label
 
     def set_options(self, **kwargs):
         self.label = kwargs.get('label', self.label)
         self.allow_expressions = kwargs.get('allow_expressions',
                                             self.allow_expressions)
         self.show = kwargs.get('show', self.show)
+        self.update_axis_label = kwargs.get('update_axis_label', self.label)
         return self
 
     def _ensure_data_type(self, data):
@@ -666,6 +678,35 @@ class Plotter(object):
         else:
             return fn(self.data, *args, **kwargs)
 
+    @get_doc_from('xlabel')
+    def xlabel(self, *args, **kwargs):
+        """ Set the xlabel of the current plot """
+        ax = kwargs.pop('ax', None)
+        if ax is None:
+            ax = plt.gca()
+        ax.set_xlabel(*args, **kwargs)
+        return self
+
+    @get_doc_from('ylabel')
+    def ylabel(self, *args, **kwargs):
+        """ Set the ylabel of the current plot """
+        ax = kwargs.pop('ax', None)
+        if ax is None:
+            plt.gca()
+        ax.set_ylabel(*args, **kwargs)
+        return self
+
+    def _set_auto_axis_labels(self, xname, yname, ax=None):
+        """ convinient shortcut for labelling axis """
+        if not self.update_axis_label:
+            return
+        if ax is None:
+            ax = plt.gca()
+        if xname is not None:
+            ax.set_xlabel(xname)
+        if yname is not None:
+            ax.set_ylabel(yname)
+
     @get_doc_from('scatter')
     def scatter(self, x, y, c='k', s=20, *args, **kwargs):
         _x = self._value_from_data(x)
@@ -682,6 +723,8 @@ class Plotter(object):
         if 'label' not in kwargs:
             kwargs['label'] = self.label
 
+        self._set_auto_axis_labels(x, y)
+
         return ax.scatter(_x, _y, c=_c, s=_s, *args, **kwargs)
 
     @get_doc_from('plot')
@@ -695,6 +738,8 @@ class Plotter(object):
 
         if 'label' not in kwargs:
             kwargs['label'] = self.label
+
+        self._set_auto_axis_labels(x, y, ax=ax)
 
         return ax.plot(_x, _y, *args, **kwargs)
 
@@ -710,6 +755,8 @@ class Plotter(object):
         if 'label' not in kwargs:
             kwargs['label'] = self.label
 
+        self._set_auto_axis_labels(x, y, ax=ax)
+
         return ax.bar(_x, _y, *args, **kwargs)
 
     @get_doc_from('step')
@@ -724,6 +771,8 @@ class Plotter(object):
         if 'label' not in kwargs:
             kwargs['label'] = self.label
 
+        self._set_auto_axis_labels(x, y, ax=ax)
+
         return ax.step(_x, _y, *args, **kwargs)
 
     @get_doc_from('hist')
@@ -737,6 +786,8 @@ class Plotter(object):
 
         if 'label' not in kwargs:
             kwargs['label'] = str(self.label)
+
+        self._set_auto_axis_labels(x, None, ax=ax)
 
         ind = np.isfinite(_x)
         _w = kwargs.pop('weights', None)
@@ -759,6 +810,9 @@ class Plotter(object):
 
         ind = np.isfinite(_x) & np.isfinite(_y)
         _w = kwargs.pop('weights', None)
+
+        self._set_auto_axis_labels(x, y, ax=ax)
+
         if _w is not None:
             return ax.hist2d(_x[ind], _y[ind], weights=_w[ind],
                              *args, **kwargs)
@@ -777,6 +831,8 @@ class Plotter(object):
 
         if 'label' not in kwargs:
             kwargs['label'] = self.label
+
+        self._set_auto_axis_labels(x, y, ax=ax)
 
         if _C is not None:
             ind = np.isfinite(_x) & np.isfinite(_y) & np.isfinite(_C)
