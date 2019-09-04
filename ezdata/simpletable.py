@@ -1840,7 +1840,7 @@ class SimpleTable(object):
             from xarray import Dataset
             return Dataset.from_dataframe(self.to_pandas(**kwargs))
         except ImportError as error:
-            print("xray import error")
+            print("xarray import error")
             raise error
 
     def to_vaex(self, **kwargs):
