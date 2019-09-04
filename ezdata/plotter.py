@@ -563,7 +563,7 @@ class Plotter(object):
     def _value_from_data(self, key):
         """ Parse a key for existing data in the dataframe. If not found,
         returns the key directly """
-        if type(key) not in basestring:
+        if not isinstance(key, basestring):
             return key
         elif key not in self.data:
             if self.allow_expressions:
@@ -1017,7 +1017,7 @@ class PairGrid(object):
 
     def __init__(self, data, keys, allow_expressions=False, **kwargs):
         self.data = data
-        self.keys = keys
+        self.keys = list(keys)
         self.allow_expressions = allow_expressions
         self.show = plt.show
         nlines = ncols = len(self.keys)
@@ -1086,7 +1086,7 @@ class PairGrid(object):
     def _generate_grid(self):
 
         nlines, ncols = self.shape
-        keys = list(self.keys())
+        keys = self.keys
 
         for k in range(nlines * ncols):
             yk, xk = np.unravel_index(k, self.shape)
@@ -1118,7 +1118,7 @@ class PairGrid(object):
     def _value_from_data(self, key):
         """ Parse a key for existing data in the dataframe. If not found,
         returns the key directly """
-        if isinstance(key, basestring):
+        if not isinstance(key, basestring):
             return key
         elif key not in self.data:
             if self.allow_expressions:

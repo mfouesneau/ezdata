@@ -585,7 +585,8 @@ def _hdf5_write_data(filename, data, tablename=None, mode='w', append=False,
 
     if isinstance(filename, tables.File):
         if (filename.mode != mode) & (mode != 'r'):
-            raise tables.FileModeError('The file is already opened in a different mode')
+            raise tables.FileModeError(
+                    'The file is already opened in a different mode')
         hd5 = filename
     else:
         hd5 = tables.open_file(filename, mode=mode)
@@ -610,7 +611,8 @@ def _hdf5_write_data(filename, data, tablename=None, mode='w', append=False,
             t.flush()
         except tables.NoSuchNodeError:
             if not silent:
-                print(("Warning: Table {0} does not exists.  \n A new table will be created").format(where + name))
+                print(("Warning: Table {0} does not exists.\n"
+                       " A new table will be created").format(where + name))
             append = False
 
     if not append:
@@ -808,7 +810,11 @@ def _latex_writeto(filename, tab, comments='%'):
 
     # tabular
     txt += '\\begin{{tabular}}{{{0:s}}}\n'.format('c' * tab.ncols)
-    txt += tab.pprint(delim=' & ', fields='MAG*', headerChar='', endline='\\\\\n', all=True, ret=True)
+    txt += tab.pprint(delim=' & ',
+                      fields='MAG*',
+                      headerChar='',
+                      endline='\\\\\n',
+                      all=True, ret=True)
     txt += '\\end{tabular}\n'
 
     # end table
@@ -962,112 +968,113 @@ def __indent__(rows, header=None, units=None, headerChar='-',
 
 
 def pprint_rec_entry(data, num=0, keys=None):
-        """ print one line with key and values properly to be readable
+    """ print one line with key and values properly to be readable
 
-        Parameters
-        ----------
-        data: recarray
-            data to extract entry from
+    Parameters
+    ----------
+    data: recarray
+        data to extract entry from
 
-        num: int, slice
-            indice selection
+    num: int, slice
+        indice selection
 
-        keys: sequence or str
-            if str, can be a regular expression
-            if sequence, the sequence of keys to print
-        """
-        if (keys is None) or (keys == '*'):
-            _keys = data.dtype.names
-        elif type(keys) in basestring:
-            _keys = [k for k in data.dtype.names if (re.match(keys, k) is not None)]
-        else:
-            _keys = keys
+    keys: sequence or str
+        if str, can be a regular expression
+        if sequence, the sequence of keys to print
+    """
+    if (keys is None) or (keys == '*'):
+        _keys = data.dtype.names
+    elif type(keys) in basestring:
+        _keys = [k for k in data.dtype.names
+                 if (re.match(keys, k) is not None)]
+    else:
+        _keys = keys
 
-        length = max(map(len, _keys))
-        fmt = '{{0:{0:d}s}}: {{1}}'.format(length)
-        data = data[num]
+    length = max(map(len, _keys))
+    fmt = '{{0:{0:d}s}}: {{1}}'.format(length)
+    data = data[num]
 
-        for k in _keys:
-            print(fmt.format(k, data[k]))
+    for k in _keys:
+        print(fmt.format(k, data[k]))
 
 
 def pprint_rec_array(data, idx=None, fields=None, ret=False, all=False,
-                     headerChar='-', delim=' | ', endline='\n' ):
-        """ Pretty print the table content
-            you can select the table parts to display using idx to
-            select the rows and fields to only display some columns
-            (ret is only for insternal use)
+                     headerChar='-', delim=' | ', endline='\n'):
+    """ Pretty print the table content
+        you can select the table parts to display using idx to
+        select the rows and fields to only display some columns
+        (ret is only for insternal use)
 
-        Parameters
-        ----------
-        data: array
-            array to show
+    Parameters
+    ----------
+    data: array
+        array to show
 
-        idx: sequence, slide
-            sub selection to print
+    idx: sequence, slide
+        sub selection to print
 
-        fields: str, sequence
-            if str can be a regular expression, and/or list of fields separated
-            by spaces or commas
+    fields: str, sequence
+        if str can be a regular expression, and/or list of fields separated
+        by spaces or commas
 
-        ret: bool
-            if set return the string representation instead of printing the result
+    ret: bool
+        if set return the string representation instead of printing the result
 
-        all: bool
-            if set, force to show all rows
+    all: bool
+        if set, force to show all rows
 
-        headerChar: char
-            Character to be used for the row separator line
+    headerChar: char
+        Character to be used for the row separator line
 
-        delim: char
-            The column delimiter.
-        """
-        if (fields is None) or (fields == '*'):
-            _keys = data.dtype.names
-        elif type(fields) in basestring:
-            if ',' in fields:
-                _fields = fields.split(',')
-            elif ' ' in fields:
-                _fields = fields.split()
+    delim: char
+        The column delimiter.
+    """
+    if (fields is None) or (fields == '*'):
+        _keys = data.dtype.names
+    elif type(fields) in basestring:
+        if ',' in fields:
+            _fields = fields.split(',')
+        elif ' ' in fields:
+            _fields = fields.split()
+        else:
+            _fields = [fields]
+        lbls = data.dtype.names
+        _keys = []
+        for _fk in _fields:
+            _keys += [k for k in lbls if (re.match(_fk, k) is not None)]
+    else:
+        lbls = data.dtype.names
+        _keys = []
+        for _fk in _fields:
+            _keys += [k for k in lbls if (re.match(_fk, k) is not None)]
+
+    nfields = len(_keys)
+    nrows = len(data)
+    fields = list(_keys)
+
+    if idx is None:
+        if (nrows < 10) or (all is True):
+            rows = [[str(data[k][rk]) for k in _keys] for rk in range(nrows)]
+        else:
+            _idx = range(6)
+            rows = [[str(data[k][rk]) for k in _keys] for rk in range(5)]
+            if nfields > 1:
+                rows += [['...' for k in range(nfields)]]
             else:
-                _fields = [fields]
-            lbls = data.dtype.names
-            _keys = []
-            for _fk in _fields:
-                _keys += [k for k in lbls if (re.match(_fk, k) is not None)]
-        else:
-            lbls = data.dtype.names
-            _keys = []
-            for _fk in _fields:
-                _keys += [k for k in lbls if (re.match(_fk, k) is not None)]
+                rows += [['...' for k in range(nfields)]]
+            rows += [[str(data[k][rk]) for k in fields] for rk in range(-5, 0)]
+    elif isinstance(idx, slice):
+        _idx = range(idx.start, idx.stop, idx.step or 1)
+        rows = [[str(data[k][rk]) for k in fields] for rk in _idx]
+    else:
+        rows = [[str(data[k][rk]) for k in fields] for rk in idx]
 
-        nfields = len(_keys)
-        nrows = len(data)
-        fields = list(_keys)
-
-        if idx is None:
-            if (nrows < 10) or (all is True):
-                rows = [ [ str(data[k][rk]) for k in _keys ] for rk in range(nrows)]
-            else:
-                _idx = range(6)
-                rows = [ [ str(data[k][rk]) for k in _keys ] for rk in range(5) ]
-                if nfields > 1:
-                    rows += [ ['...' for k in range(nfields) ] ]
-                else:
-                    rows += [ ['...' for k in range(nfields) ] ]
-                rows += [ [ str(data[k][rk]) for k in fields ] for rk in range(-5, 0)]
-        elif isinstance(idx, slice):
-            _idx = range(idx.start, idx.stop, idx.step or 1)
-            rows = [ [ str(data[k][rk]) for k in fields ] for rk in _idx]
-        else:
-            rows = [ [ str(data[k][rk]) for k in fields ] for rk in idx]
-
-        out = __indent__(rows, header=_keys, units=None, delim=delim,
-                         headerChar=headerChar, endline=endline)
-        if ret is True:
-            return out
-        else:
-            print(out)
+    out = __indent__(rows, header=_keys, units=None, delim=delim,
+                     headerChar=headerChar, endline=endline)
+    if ret is True:
+        return out
+    else:
+        print(out)
 
 
 def elementwise(func):
@@ -1138,10 +1145,10 @@ class AstroHelpers(object):
             sign = -1
         else:
             sign = 1
-        d = int( sign * val )
-        m = int( (sign * val - d) * 60. )
-        s = (( sign * val - d) * 60.  - m) * 60.
-        return '{0}{1}{2}{3}{4}'.format( sign * d, delim, m, delim, s)
+        d = int(sign * val)
+        m = int((sign * val - d) * 60.)
+        s = ((sign * val - d) * 60. - m) * 60.
+        return '{0}{1}{2}{3}{4}'.format(sign * d, delim, m, delim, s)
 
     @staticmethod
     @elementwise
@@ -1165,10 +1172,10 @@ class AstroHelpers(object):
             sign = -1
         else:
             sign = 1
-        h = int( sign * val / 45. * 3.)   # * 24 / 360
-        m = int( (sign * val / 45. * 3. - h) * 60. )
-        s = (( sign * val / 45. * 3. - h) * 60.  - m) * 60.
-        return '{0}{1}{2}{3}{4}'.format( sign * h, delim, m, delim, s)
+        h = int(sign * val / 45. * 3.)   # * 24 / 360
+        m = int((sign * val / 45. * 3. - h) * 60.)
+        s = ((sign * val / 45. * 3. - h) * 60. - m) * 60.
+        return '{0}{1}{2}{3}{4}'.format(sign * h, delim, m, delim, s)
 
     @staticmethod
     @elementwise
@@ -1194,7 +1201,8 @@ class AstroHelpers(object):
         else:
             neg = 1
         _str = _str.split(delim)
-        return (neg * ((float(_str[-1]) / 60. + float(_str[1])) / 60. + float(_str[0])))
+        return (neg * ((float(_str[-1]) / 60.
+                        + float(_str[1])) / 60. + float(_str[0])))
 
     @staticmethod
     @elementwise
@@ -1244,9 +1252,9 @@ class AstroHelpers(object):
             Written W. Landsman,  February 1987
             Adapted from Fortran by Daryl Yentis NRL
             Converted to IDL V5.0   W. Landsman   September 1997
-            Made J2000 the default, added /FK4 keyword  W. Landsman December 1998
-            Add option to specify SELECT as a keyword W. Landsman March 2003
-            Converted from IDL to numerical Python: Erin Sheldon, NYU, 2008-07-02
+            Made J2000 default, added /FK4 keyword  W. Landsman December 1998
+            Add option SELECT as a keyword W. Landsman March 2003
+            Converted from IDL to Python: Erin Sheldon, NYU, 2008-07-02
         """
 
         # Make a copy as an array. ndmin=1 to avoid messed up scalar arrays
@@ -1258,63 +1266,63 @@ class AstroHelpers(object):
         D2R = PI / 180.0
         R2D = 1.0 / D2R
 
-        twopi   = 2.0 * PI
-        fourpi  = 4.0 * PI
+        twopi = 2.0 * PI
+        fourpi = 4.0 * PI
 
         #   J2000 coordinate conversions are based on the following constants
         #   (see the Hipparcos explanatory supplement).
-        #  eps = 23.4392911111d           Obliquity of the ecliptic
-        #  alphaG = 192.85948d            Right Ascension of Galactic North Pole
-        #  deltaG = 27.12825d             Declination of Galactic North Pole
-        #  lomega = 32.93192d             Galactic longitude of celestial equator
-        #  alphaE = 180.02322d            Ecliptic longitude of Galactic North Pole
-        #  deltaE = 29.811438523d         Ecliptic latitude of Galactic North Pole
-        #  Eomega  = 6.3839743d           Galactic longitude of ecliptic equator
+        #  eps = 23.4392911111d       Obliquity of the ecliptic
+        #  alphaG = 192.85948d        Right Ascension of Galactic North Pole
+        #  deltaG = 27.12825d         Declination of Galactic North Pole
+        #  lomega = 32.93192d         Galactic longitude of celestial equator
+        #  alphaE = 180.02322d        Ecliptic longitude of Galactic North Pole
+        #  deltaE = 29.811438523d     Ecliptic latitude of Galactic North Pole
+        #  Eomega  = 6.3839743d       Galactic longitude of ecliptic equator
         # Parameters for all the different conversions
         if b1950:
             # equinox = '(B1950)'
-            psi    = np.array([ 0.57595865315, 4.9261918136,
-                                0.00000000000, 0.0000000000,
-                                0.11129056012, 4.7005372834], dtype=dtype)
-            stheta = np.array([ 0.88781538514, -0.88781538514,
-                                0.39788119938, -0.39788119938,
-                                0.86766174755, -0.86766174755], dtype=dtype)
-            ctheta = np.array([ 0.46019978478, 0.46019978478,
-                                0.91743694670, 0.91743694670,
-                                0.49715499774, 0.49715499774], dtype=dtype)
-            phi    = np.array([ 4.9261918136,  0.57595865315,
-                                0.0000000000, 0.00000000000,
-                                4.7005372834, 0.11129056012], dtype=dtype)
+            psi = np.array([0.57595865315, 4.9261918136,
+                            0.00000000000, 0.0000000000,
+                            0.11129056012, 4.7005372834], dtype=dtype)
+            stheta = np.array([0.88781538514, -0.88781538514,
+                               0.39788119938, -0.39788119938,
+                               0.86766174755, -0.86766174755], dtype=dtype)
+            ctheta = np.array([0.46019978478, 0.46019978478,
+                               0.91743694670, 0.91743694670,
+                               0.49715499774, 0.49715499774], dtype=dtype)
+            phi = np.array([4.9261918136,  0.57595865315,
+                            0.0000000000, 0.00000000000,
+                            4.7005372834, 0.11129056012], dtype=dtype)
         else:
             # equinox = '(J2000)'
-            psi    = np.array([ 0.57477043300, 4.9368292465,
-                                0.00000000000, 0.0000000000,
-                                0.11142137093, 4.71279419371], dtype=dtype)
-            stheta = np.array([ 0.88998808748, -0.88998808748,
-                                0.39777715593, -0.39777715593,
-                                0.86766622025, -0.86766622025], dtype=dtype)
-            ctheta = np.array([ 0.45598377618, 0.45598377618,
-                                0.91748206207, 0.91748206207,
-                                0.49714719172, 0.49714719172], dtype=dtype)
-            phi    = np.array([ 4.9368292465,  0.57477043300,
-                                0.0000000000, 0.00000000000,
-                                4.71279419371, 0.11142137093], dtype=dtype)
+            psi = np.array([0.57477043300, 4.9368292465,
+                            0.00000000000, 0.0000000000,
+                            0.11142137093, 4.71279419371], dtype=dtype)
+            stheta = np.array([0.88998808748, -0.88998808748,
+                               0.39777715593, -0.39777715593,
+                               0.86766622025, -0.86766622025], dtype=dtype)
+            ctheta = np.array([0.45598377618, 0.45598377618,
+                               0.91748206207, 0.91748206207,
+                               0.49714719172, 0.49714719172], dtype=dtype)
+            phi = np.array([4.9368292465,  0.57477043300,
+                            0.0000000000, 0.00000000000,
+                            4.71279419371, 0.11142137093], dtype=dtype)
 
         # zero offset
-        i  = select - 1
-        a  = ai * D2R - phi[i]
+        i = select - 1
+        a = ai * D2R - phi[i]
 
         b = bi * D2R
         sb = sin(b)
         cb = cos(b)
         cbsa = cb * sin(a)
-        b  = -stheta[i] * cbsa + ctheta[i] * sb
+        b = -stheta[i] * cbsa + ctheta[i] * sb
         w, = np.where(b > 1.0)
         if w.size > 0:
             b[w] = 1.0
         bo = arcsin(b) * R2D
-        a  = arctan2( ctheta[i] * cbsa + stheta[i] * sb, cb * cos(a) )
-        ao = ( (a + psi[i] + fourpi) % twopi) * R2D
+        a = arctan2(ctheta[i] * cbsa + stheta[i] * sb, cb * cos(a))
+        ao = ((a + psi[i] + fourpi) % twopi) * R2D
         return ao, bo
 
     @staticmethod
@@ -1383,7 +1391,7 @@ class AstroHelpers(object):
                 return conditional vector and distance to all ra0, dec0
         """
         @elementwise
-        def getDist( pk ):
+        def getDist(pk):
             """ get spherical distance between 2 points """
             return AstroHelpers.sphdist(pk[0], pk[1], ra, dec)
 
@@ -1410,8 +1418,8 @@ class SimpleTable(object):
 
     fname: str or object
         if str, the file to read from. This may be limited to the format
-        currently handled automatically. If the format is not correctly handled,
-        you can try by providing an object.__
+        currently handled automatically. If the format is not correctly
+        handled, you can try by providing an object.__
 
         if object with a structure like dict, ndarray, or recarray-like
             the data will be encapsulated into a Table
@@ -1426,7 +1434,8 @@ class SimpleTable(object):
         set of column units (can be defined later :func:`set_unit`)
 
     desc: dict
-        set of column description or comments (can be defined later :func:`set_comment`)
+        set of column description or comments (can be defined later
+        :func:`set_comment`)
 
     header: dict
         key, value pair corresponding to the attributes of the table
@@ -1441,7 +1450,8 @@ class SimpleTable(object):
         self._units = kwargs.get('units', {})
         self._desc = kwargs.get('desc', {})
 
-        if (isinstance(fname, (dict, tuple, list, types.GeneratorType))) or (dtype in [dict, 'dict']):
+        if (isinstance(fname, (dict, tuple, list, types.GeneratorType)))\
+                or (dtype in [dict, 'dict']):
             try:
                 self.header = fname.pop('header', {})
             except (AttributeError, TypeError):
@@ -1455,14 +1465,18 @@ class SimpleTable(object):
             if (extension == 'csv') or dtype == 'csv':
                 kwargs.setdefault('delimiter', ',')
                 commentedHeader = kwargs.pop('commentedHeader', False)
-                n, header, units, comments, aliases, names = _ascii_read_header(fname, commentedHeader=commentedHeader, **kwargs)
+                n, header, units, comments, aliases, names\
+                    = _ascii_read_header(fname,
+                                         commentedHeader=commentedHeader,
+                                         **kwargs)
                 if 'names' in kwargs:
                     n -= 1
                 kwargs.setdefault('names', names)
                 if _pd is not None:   # pandas is faster
                     kwargs.setdefault('comment', '#')
                     kwargs.setdefault('skiprows', n)
-                    self.data = _pd.read_csv(fname, *args, **kwargs).to_records()
+                    self.data = _pd.read_csv(fname,
+                                             *args, **kwargs).to_records()
                 else:
                     kwargs.setdefault('skip_header', n)
                     kwargs.setdefault('comments', '#')
@@ -1472,18 +1486,25 @@ class SimpleTable(object):
                 self._desc.update(**comments)
                 self._aliases.update(**aliases)
                 kwargs.setdefault('names', True)
-            elif (extension in ('tsv', 'dat', 'txt')) or (dtype in ('tsv', 'dat', 'txt')):
+            elif (extension in ('tsv', 'dat', 'txt'))\
+                    or (dtype in ('tsv', 'dat', 'txt')):
                 commentedHeader = kwargs.pop('commentedHeader', True)
-                n, header, units, comments, aliases, names = _ascii_read_header(fname, commentedHeader=commentedHeader, **kwargs)
+                n, header, units, comments, aliases, names \
+                    = _ascii_read_header(fname,
+                                         commentedHeader=commentedHeader,
+                                         **kwargs)
                 kwargs.setdefault('names', names)
                 if _pd is not None:   # pandas is faster
-                    kwargs.setdefault('delimiter', '\s+')
-                    kwargs.setdefault('comment', kwargs.pop('comments', '#')) #inconsistent API numpy vs. pandas
+                    kwargs.setdefault('delimiter', r'\s+')
+                    # inconsistent API numpy vs. pandas
+                    kwargs.setdefault('comment', kwargs.pop('comments', '#'))
                     kwargs.setdefault('skiprows', n + 1)  # names
-                    self.data = _pd.read_csv(fname, *args, **kwargs).to_records()
+                    self.data = _pd.read_csv(fname,
+                                             *args, **kwargs).to_records()
                 else:
                     kwargs.setdefault('delimiter', None)
-                    kwargs.setdefault('comments', kwargs.pop('comment', '#')) #inconsistent API numpy vs. pandas
+                    # inconsistent API numpy vs. pandas
+                    kwargs.setdefault('comments', kwargs.pop('comment', '#'))
                     kwargs.setdefault('skip_header', n)
                     self.data = np.recfromtxt(fname, *args, **kwargs)
                 self.header = header
@@ -1492,30 +1513,42 @@ class SimpleTable(object):
                 self._aliases.update(**aliases)
             elif (extension == 'fits') or dtype == 'fits':
                 if pyfits is None:
-                    raise RuntimeError('Cannot read this format, Astropy or pyfits not found')
-                if ('extname' not in kwargs) and ('ext' not in kwargs) and (len(args) == 0):
+                    msg = 'Cannot read this format, Astropy / pyfits not found'
+                    raise RuntimeError(msg)
+                if ('extname' not in kwargs) \
+                        and ('ext' not in kwargs) \
+                        and (len(args) == 0):
                     args = (1, )
                 self.data = np.array(pyfits.getdata(fname, *args, **kwargs))
-                header, aliases, units, comments = _fits_read_header(pyfits.getheader(fname, *args, **kwargs))
+                header, aliases, units, comments \
+                    = _fits_read_header(pyfits.getheader(fname,
+                                                         *args, **kwargs))
                 self.header = header
                 self._desc.update(**comments)
                 self._units.update(**units)
                 self._aliases.update(**aliases)
-            elif (extension in ('hdf5', 'hd5', 'hdf')) or (dtype in ('hdf5', 'hd5', 'hdf')):
+            elif (extension in ('hdf5', 'hd5', 'hdf')) \
+                    or (dtype in ('hdf5', 'hd5', 'hdf')):
                 if tables is None:
-                    raise RuntimeError('Cannot read this format, pytables not found')
-                hdr, aliases, units, desc, data = _hdf5_read_data(fname, *args, **kwargs)
+                    msg = 'Cannot read this format, pytables not found'
+                    raise RuntimeError(msg)
+                hdr, aliases, units, desc, data \
+                    = _hdf5_read_data(fname, *args, **kwargs)
                 self.data = data
                 self.header = hdr
                 self._units.update(**units)
                 self._desc.update(**desc)
                 self._aliases.update(**aliases)
-            elif (extension in ('vot', 'votable')) or (dtype in ('vot', 'votable')):
+            elif (extension in ('vot', 'votable')) \
+                    or (dtype in ('vot', 'votable')):
                 # Votable case
                 if _astropytable is None:
-                    raise RuntimeError('Cannot read this votable format, astropy not found')
-                data = _astropytable.read(fname, format='votable', *args, **kwargs)
-                units = [(k, getattr(data[k].unit, "name", "")) for k in data.keys()]
+                    msg = 'Cannot read this votable format, astropy not found'
+                    raise RuntimeError(msg)
+                data = _astropytable.read(fname, format='votable',
+                                          *args, **kwargs)
+                units = [(k, getattr(data[k].unit, "name", ""))
+                         for k in data.keys()]
                 desc = [(k, data[k].description) for k in data.keys()]
                 self.data = data.as_array()
                 self.header = {}
@@ -1602,7 +1635,8 @@ class SimpleTable(object):
             by spaces or commas
 
         ret: bool
-            if set return the string representation instead of printing the result
+            if set return the string representation instead of printing the
+            result
 
         all: bool
             if set, force to show all rows
@@ -1639,29 +1673,33 @@ class SimpleTable(object):
 
         nfields = len(_keys)
 
-        fields = list(map( self.resolve_alias, _keys ))
+        fields = list(map(self.resolve_alias, _keys))
 
         if idx is None:
             if (self.nrows < 10) or all:
-                rows = [ [ str(self[k][rk]) for k in _keys ] for rk in range(self.nrows)]
+                rows = [[str(self[k][rk]) for k in _keys]
+                        for rk in range(self.nrows)]
             else:
                 _idx = range(6)
-                rows = [ [ str(self[k][rk]) for k in _keys ] for rk in range(5) ]
+                rows = [[str(self[k][rk]) for k in _keys]
+                        for rk in range(5)]
                 if nfields > 1:
-                    rows += [ ['...' for k in range(nfields) ] ]
+                    rows += [['...' for k in range(nfields)]]
                 else:
-                    rows += [ ['...' for k in range(nfields) ] ]
-                rows += [ [ str(self[k][rk]) for k in fields ] for rk in range(-5, 0)]
+                    rows += [['...' for k in range(nfields)]]
+                rows += [[str(self[k][rk]) for k in fields]
+                         for rk in range(-5, 0)]
         elif isinstance(idx, slice):
             _idx = range(idx.start, idx.stop, idx.step or 1)
-            rows = [ [ str(self[k][rk]) for k in fields ] for rk in _idx]
+            rows = [[str(self[k][rk]) for k in fields]for rk in _idx]
         else:
-            rows = [ [ str(self[k][rk]) for k in fields ] for rk in idx]
+            rows = [[str(self[k][rk]) for k in fields]for rk in idx]
 
         if len(self._units) == 0:
             units = None
         else:
-            units = [ '(' + str( self._units.get(k, None) or '') + ')' for k in fields ]
+            units = ['(' + str(self._units.get(k, None) or '') + ')'
+                     for k in fields]
 
         out = __indent__(rows, header=_keys, units=units, delim=delim,
                          headerChar=headerChar, endline=endline)
@@ -1690,7 +1728,8 @@ class SimpleTable(object):
             comments = kwargs.pop('comments', '#')
             delimiter = kwargs.pop('delimiter', ',')
             commentedHeader = kwargs.pop('commentedHeader', False)
-            hdr = _ascii_generate_header(self, comments=comments, delimiter=delimiter,
+            hdr = _ascii_generate_header(self, comments=comments,
+                                         delimiter=delimiter,
                                          commentedHeader=commentedHeader)
             header = kwargs.pop('header', hdr)
             np.savetxt(fname, self.data, delimiter=delimiter, header=header,
@@ -1699,7 +1738,8 @@ class SimpleTable(object):
             comments = kwargs.pop('comments', '#')
             delimiter = kwargs.pop('delimiter', ' ')
             commentedHeader = kwargs.pop('commentedHeader', True)
-            hdr = _ascii_generate_header(self, comments=comments, delimiter=delimiter,
+            hdr = _ascii_generate_header(self, comments=comments,
+                                         delimiter=delimiter,
                                          commentedHeader=commentedHeader)
             header = kwargs.pop('header', hdr)
             np.savetxt(fname, self.data, delimiter=delimiter, header=header,
@@ -1829,9 +1869,9 @@ class SimpleTable(object):
     def to_dask(self, **kwargs):
         """ Construct a Dask DataFrame
 
-        This splits an in-memory Pandas dataframe into several parts and constructs
-        a dask.dataframe from those parts on which Dask.dataframe can operate in
-        parallel.
+        This splits an in-memory Pandas dataframe into several parts and
+        constructs a dask.dataframe from those parts on which Dask.dataframe
+        can operate in parallel.
 
         Note that, despite parallelism, Dask.dataframe may not always be faster
         than Pandas.  We recommend that you stay with Pandas for as long as
@@ -1842,16 +1882,17 @@ class SimpleTable(object):
         keys: sequence, optional
             ordered subset of columns to export
         npartitions : int, optional
-            The number of partitions of the index to create. Note that depending on
-            the size and index of the dataframe, the output may have fewer
-            partitions than requested.
+            The number of partitions of the index to create. Note that
+            depending on the size and index of the dataframe, the output may
+            have fewer partitions than requested.
         chunksize : int, optional
             The size of the partitions of the index.
         sort: bool
-            Sort input first to obtain cleanly divided partitions or don't sort and
-            don't get cleanly divided partitions
+            Sort input first to obtain cleanly divided partitions or don't sort
+            and don't get cleanly divided partitions
         name: string, optional
-            An optional keyname for the dataframe.  Defaults to hashing the input
+            An optional keyname for the dataframe.  Defaults to hashing the
+            input
 
         Returns
         -------
@@ -1929,8 +1970,9 @@ class SimpleTable(object):
         self._aliases[alias] = colname
 
     def _clean_orphan_aliases(self):
-        """ Make sure remaining aliases are all correctly links to some data """
-        self._aliases = {k:v for k,v in self._aliases.items() if v in self.data.dtype.names}
+        """ Make sure remaining aliases are correctly links to some data """
+        self._aliases = {k: v for k, v in self._aliases.items()
+                         if v in self.data.dtype.names}
 
     def reverse_alias(self, colname):
         """
@@ -1943,7 +1985,8 @@ class SimpleTable(object):
         if (_colname not in self.keys()):
             raise KeyError("Column {0:s} does not exist".format(colname))
 
-        return tuple([ k for (k, v) in self._aliases.iteritems() if (v == _colname) ])
+        return tuple([k for (k, v) in self._aliases.iteritems()
+                      if (v == _colname)])
 
     def resolve_alias(self, colname):
         """
@@ -1955,12 +1998,13 @@ class SimpleTable(object):
         Aliases are defined by using .define_alias()
         """
         # User aliases
-        if hasattr(colname, '__iter__') & (type(colname) not in basestring):
-            return [ self.resolve_alias(k) for k in colname ]
+        if hasattr(colname, '__iter__') \
+                & (not isinstance(colname, basestring)):
+            return [self.resolve_alias(k) for k in colname]
         else:
             if self.caseless is True:
-                maps = dict( [ (k.lower(), v) for k, v in self._aliases.items() ] )
-                maps.update( (k.lower(), k) for k in self.keys() )
+                maps = dict([(k.lower(), v) for k, v in self._aliases.items()])
+                maps.update((k.lower(), k) for k in self.keys())
                 return maps.get(colname.lower(), colname)
             else:
                 return self._aliases.get(colname, colname)
@@ -2052,7 +2096,8 @@ class SimpleTable(object):
                 _keys += self.keys(k)
             return _keys
         else:
-            raise ValueError('Unexpected type {0} for regexp'.format(type(regexp)))
+            msg = 'Unexpected type {0} for regexp'.format(type(regexp))
+            raise ValueError(msg)
 
     @property
     def name(self):
@@ -2100,7 +2145,8 @@ class SimpleTable(object):
         """ Plotter instance related to this dataset.
         Requires plotter add-on to work """
         if Plotter is None:
-            raise AttributeError('the add-on was not found, this property is not available')
+            msg = 'the add-on was not found, this property is not available'
+            raise AttributeError(msg)
         else:
             return Plotter(self, label=self.name)
 
@@ -2196,9 +2242,12 @@ class SimpleTable(object):
         new_keys = self.keys(v)
         t = self.__class__(self[new_keys])
         t.header.update(**self.header)
-        t._aliases.update((k, v) for (k, v) in self._aliases.items() if v in new_keys)
-        t._units.update((k, v) for (k, v) in self._units.items() if v in new_keys)
-        t._desc.update((k, v) for (k, v) in self._desc.items() if v in new_keys)
+        t._aliases.update((k, v) for (k, v) in self._aliases.items()
+                          if v in new_keys)
+        t._units.update((k, v) for (k, v) in self._units.items()
+                        if v in new_keys)
+        t._desc.update((k, v) for (k, v) in self._desc.items()
+                       if v in new_keys)
         return t
 
     def __setitem__(self, k, v):
@@ -2210,7 +2259,7 @@ class SimpleTable(object):
     def __getattr__(self, k):
         try:
             return self.data.__getitem__(self.resolve_alias(k))
-        except:
+        except Exception:
             return object.__getattribute__(self, k)
 
     def __iter__(self):
@@ -2237,7 +2286,8 @@ class SimpleTable(object):
 
     def info(self):
         """ prints information on the table """
-        s = "\nTable: {name:s}\n       nrows={s.nrows:d}, ncols={s.ncols:d}, mem={size:s}"
+        s = "\nTable: {name:s}\n       nrows={s.nrows:d},"\
+            " ncols={s.ncols:d}, mem={size:s}"
         s = s.format(name=self.header.get('NAME', 'Noname'), s=self,
                      size=pretty_size_print(self.nbytes))
 
@@ -2250,13 +2300,15 @@ class SimpleTable(object):
 
         vals = [(k, self._units.get(k, ''), self._desc.get(k, ''))
                 for k in self.colnames]
-        lengths = [(len(k), len(self._units.get(k, '')), len(self._desc.get(k, '')))
+        lengths = [(len(k), len(self._units.get(k, '')),
+                    len(self._desc.get(k, '')))
                    for k in self.colnames]
         lengths = list(map(max, (zip(*lengths))))
 
         s += '\nColumns:\n'
 
-        fmt = '\t{{0:{0:d}s}} {{1:{1:d}s}} {{2:{2:d}s}}\n'.format(*(k + 1 for k in lengths))
+        fmt = '\t{{0:{0:d}s}} {{1:{1:d}s}} {{2:{2:d}s}}\n'
+        fmt = fmt.format(*(k + 1 for k in lengths))
         for k, u, c in vals:
             s += fmt.format(k, u, c)
 
@@ -2269,7 +2321,8 @@ class SimpleTable(object):
 
     def __repr__(self):
         s = object.__repr__(self)
-        s += "\nTable: {name:s}\n       nrows={s.nrows:d}, ncols={s.ncols:d}, mem={size:s}"
+        s += "\nTable: {name:s}\n       nrows={s.nrows:d},"\
+             "ncols={s.ncols:d}, mem={size:s}"
         return s.format(name=self.header.get('NAME', 'Noname'), s=self,
                         size=pretty_size_print(self.nbytes))
 
@@ -2333,7 +2386,7 @@ class SimpleTable(object):
         indexes: tuple
             tuple of both indices list where the two columns match.
         """
-        return np.where( np.equal.outer( self[key], r2[key] ) )
+        return np.where(np.equal.outer(self[key], r2[key]))
 
     def stack(self, r, *args, **kwargs):
         """
@@ -2362,7 +2415,7 @@ class SimpleTable(object):
             return t
 
     def join(self, other, on=None, left_on=None, right_on=None,
-         lsuffix='', rsuffix='', how='left', inplace=False):
+             lsuffix='', rsuffix='', how='left', inplace=False):
         """ Return a dataset joined with other datasets, matched
            by columns/expression on/left_on/right_on
 
@@ -2391,8 +2444,9 @@ class SimpleTable(object):
             similar for the right
 
         how: string
-            how to join, 'left' keeps all rows on the left, and adds columns (with possible missing values)
-                'right' is similar with self and other swapped.
+            how to join, 'left' keeps all rows on the left, and adds columns
+            (with possible missing values) 'right' is similar with self and
+            other swapped.
 
         inplace: boolean
             do not copy the left table
@@ -2413,14 +2467,16 @@ class SimpleTable(object):
             lsuffix, rsuffix = rsuffix, lsuffix
             left_on, right_on = right_on, left_on
         else:
-            raise ValueError('join type not supported: {}, only left and right'.format(how))
+            msg = 'join type not supported: {}, only left/right'.format(how)
+            raise ValueError(msg)
 
         right_keys = list(right.keys())
         left_keys = list(left.keys())
         for name in right_keys:
             if name in left_keys and name + rsuffix == name + lsuffix:
-                raise ValueError('column name collision: {} exists in both column, and no proper suffix given'
-                                 .format(name))
+                msg = 'column name collision: {} exists in both column,'\
+                        'and no proper suffix given'.format(name)
+                raise ValueError(msg)
         N = len(left)
         N_other = len(right)
         left_on = left_on or on
@@ -2452,16 +2508,20 @@ class SimpleTable(object):
             if np.ma.isMaskedArray(right_values):
                 mask = ~right_values.mask
                 right_values = right_values.data
-                index_other = dict(zip(right_values[mask], np.arange(N_other)[mask]))
+                # index_other = dict(zip(right_values[mask],
+                #                        np.arange(N_other)[mask]))
             else:
-                index_other = dict(zip(right_values, np.arange(N_other)))
+                pass
+                # index_other = dict(zip(right_values, np.arange(N_other)))
 
             # we do a left join, find all rows of the right dataset
             # that has an entry on the left
             # for each row in the right
             # find which row it needs to go to in the right
-            # from_indices = np.zeros(N_other, dtype=np.int64)  # row # of right
-            # to_indices = np.zeros(N_other, dtype=np.int64)    # goes to row # on the left
+            # from_indices = np.zeros(N_other, dtype=np.int64)
+            # row # of right
+            # to_indices = np.zeros(N_other, dtype=np.int64)
+            # goes to row # on the left
             # keep a boolean mask of which rows are found
             left_mask = np.ones(N, dtype=np.bool)
             # and which row they point to in the right
@@ -2472,7 +2532,7 @@ class SimpleTable(object):
                     left_mask[left_row] = False  # unmask, it exists
                     left_row_to_right[left_row] = i
 
-            lookup = np.ma.array(left_row_to_right, mask=left_mask)
+            # lookup = np.ma.array(left_row_to_right, mask=left_mask)
             for name in right_keys:
                 right_name = name
                 if name in left_keys:
