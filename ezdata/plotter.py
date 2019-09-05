@@ -334,6 +334,23 @@ class Group(object):
         self.axes = plt.subplot(*args, **kwargs)
         return self
 
+    def apply(self, fn, *args, **kwargs):
+        """apply function on each element of the group
+
+        Parameters
+        ----------
+        func : callable plotting function
+            Must take x, y arrays as positional arguments and draw onto the
+            "currently active" matplotlib Axes.
+        """
+        if self.facet:
+            axes = self.make_facets()
+        ret = []
+        for ax, element in zip(axes, self.seq):
+            plt.sca(ax)
+            ret.append(element.apply(fn, *args, **kwargs))
+        return ret
+
     def __len__(self):
         return len(self.seq)
 
@@ -929,7 +946,7 @@ class Plotter(object):
         if labels is None:
             labels = {}
 
-        lst = [Plotter(g, label=labels.get(k, k)) for k, g in r]
+        lst = [self.__class__(g, label=labels.get(k, k)) for k, g in r]
         return Group(lst, title=key, all_against=True).set_options(**kwargs)
 
     def lagplot(self, x, t=1, **kwargs):
