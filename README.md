@@ -1,4 +1,4 @@
-# ezData - A Sandbox for simplistic column based data framework. 
+# ezData - A simplistic column based data framework. 
 
 > tested with python 2.7, & 3.4, 3.5, 3.6, 3.7
 >
