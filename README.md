@@ -18,6 +18,7 @@
 Documentation and API: [link](http://mfouesneau.github.io/docs/ezdata/)
 
 Example notebook in the `examples` directory
+
 .. image:: https://img.shields.io/badge/render%20on-nbviewer-orange.svg
   :target: https://nbviewer.jupyter.org/github/mfouesneau/ezdata/blob/master/examples/examples.ipynb
 
