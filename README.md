@@ -29,17 +29,21 @@ scatter plot with these specific markers and color coded by another column_.
 _I was basically tired of all the packages doing fancy things and not allowing
 basics or requiring a lot of dependencies._
 
+This package initially focused on easily manipulating column oriented data.
 In particular this package allows easy conversions to many common dataframe
 containers: `dict`, `numpy.recarray`, `pandas.DataFrame`, `dask.DataFrame`,
 `astropy.Table`, `xarray.Dataset`, `vaex.DataSetArrays`.
 
+I extended this package to allow myself to plot these data in the a very simple 
+manner. Of course this was not covering all needs and thus I added interfaced to
+`holoviews/datashader`.
 
 ## What is this package?
 
 Based on the most basic functions and in particular methods of `dict`, I wrote
 this package. This basically builds advance-ish access to column oriented data
-through 3 main classes, 2 of which handle data. **This may not fit all needs,
-nor large data access**.
+through 4 main classes, 2 of which handle data and the others plotting shortcuts. 
+**This may not fit all needs, nor large data access**.
 
 * `dictdataframe`: an advanced dictionary object.
 	A simple-ish dictionary like structure allowing usage as array on non
@@ -54,21 +58,26 @@ nor large data access**.
 	The :class:`AstroTable` built on top of the latter class, adds-on
 	astronomy related functions, such as `conesearch`
 
-* `plotter`: In this package implements :class:`Plotter`, which is a simple
+* `plotter`: this package implements :class:`Plotter`, which is a simple
   container to dictionary like structure (e.g. :class:`dict`,
   :class:`np.recarray`, :class:`pandas.DataFrame`, :class:`SimpleTable`). 
   It allows the user to plot directly using keys of the data and also allows
   rapid group plotting routines (`groupy` and `facets`). Note that is also
   allows expressions instead of keys.  **This interface should basically work on
   any dictionary like structure**
+  
+* `DSPlotter`:  extends :class:`Plotter`, to use `datashader` for some plots
+  allows expressions instead of keys.  **This interface requires `holoview` and `datashader`**
 
 Both data structures implements common ground base to line and column access in
 the same transparent manner.  These objects implement for instance array
 slicing, shape, dtypes on top of which they implement functions such as:
 `sortby`, `groupby`, `where`, `join` and evaluation of expressions as keys. (see
-examples below). Both also have a direct access to a `Plotter` attribute
+examples below). Both also have a direct access to a `Plotter` attribute. 
+`DSPlotter` is experimental and requires more than basic libraries so that it 
+needs to be called on the side.
 
-These data classes allows easy conversions to many common dataframe
+The data classes allows easy conversions to many common dataframe
 containers: `numpy.recarray`, `pandas.DataFrame`, `dask.DataFrame`,
 `astropy.Table`, `xarray.Dataset`, `vaex.DataSetArrays`.
 
