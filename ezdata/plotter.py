@@ -1143,8 +1143,8 @@ class Plotter(object):
         kwargs: dict
             Forwarded to `Plotter.pairplot` method
         """
-        return CornerPlot(self, varnames=None, labels=None, figsize=None,
-                          **kwargs)
+        return CornerPlot(self, varnames=varnames, labels=labels,
+                          figsize=figsize, **kwargs)
 
 
 class PairGrid(object):
@@ -1493,7 +1493,7 @@ class CornerPlot():
             self.plotter = Plotter(plotter)
 
         if varnames is None:
-            varnames = list(plotter.data.keys())
+            varnames = list(self.plotter.keys)
 
         if labels is None:
             labels = varnames
