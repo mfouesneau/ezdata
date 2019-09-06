@@ -1,6 +1,6 @@
 # ezData - A simplistic column based data framework. 
 
-> tested with python 2.7, & 3.4, 3.5, 3.6, 3.7
+tested with github workflow: ![](https://github.com/mfouesneau/ezdata/workflows/Python%20package/badge.svg)
 >
 > compatible with many existing dataframes: e.g. pandas 
 >
