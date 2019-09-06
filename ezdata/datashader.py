@@ -83,7 +83,9 @@ class DSArtist(mimage._ImageBase):
 
     def get_extent(self):
         """ returns the image extension """
-        return (*self.axes.get_xlim(), *self.axes.get_ylim())
+        x_1, y_1, x_2 = self.axes.get_xlim()
+        y_1, y_2 = self.axes.get_ylim()
+        return (x_1, x_2, y_1, y_2)
 
     def get_cursor_data(self, event):
         """Get the cursor data for a given event"""
