@@ -260,6 +260,7 @@ class Group(object):
         self._all_against = kwargs.pop('all_against', self._all_against)
         self._show_facet_title = kwargs.pop('show_facet_title',
                                             self._show_facet_title)
+        self.ncols = kwargs.pop('ncols', self.ncols)
         if sharex is not None:
             self.sharex = sharex
         if sharey is not None:
@@ -740,7 +741,7 @@ class Plotter(object):
         if 'label' not in kwargs:
             kwargs['label'] = self.label
 
-        self._set_auto_axis_labels(x, y)
+        self._set_auto_axis_labels(x, y, ax=ax)
 
         return ax.scatter(_x, _y, c=_c, s=_s, *args, **kwargs)
 
@@ -1121,6 +1122,30 @@ class Plotter(object):
         return PairGrid(self, keys, allow_expressions=self.allow_expressions,
                         **kwargs)
 
+    def cornerplot(self, varnames=None, labels=None, figsize=None, **kwargs):
+        """ This is a high-level interface for PairGrid making quickly a CornerPlot
+
+        Parameters
+        ----------
+        plotter: Plotter instance
+            plotter to use. If a dataframe is provided, the default will be to
+            use Plotter(plotter).
+
+        varnames: seq(str)
+            limit the plot to a subset of variables
+
+        labels: seq(str)
+            replace the variable names by provided labels
+
+        figsize: tuple(height, width)
+            Size of the figure. Default is a square of length 3 * len(varnames)
+
+        kwargs: dict
+            Forwarded to `Plotter.pairplot` method
+        """
+        return CornerPlot(self, varnames=None, labels=None, figsize=None,
+                          **kwargs)
+
 
 class PairGrid(object):
     """ Container to Plot pairwise relationships in a dataset.
@@ -1427,6 +1452,98 @@ class PairGrid(object):
         r = self.map_offdiag(fn, *args, **kwargs)
         r.extend(self.map_diag(fn, *args, **kwargs))
         return r
+
+
+class CornerPlot():
+    """ Generates a corner plot rapidly
+
+    Attributes
+    ----------
+    plotter: Plotter instance
+        plotter used by the class.
+
+    pp: PairGrid instance
+        Pair grid that will be used to make the plots
+    """
+    def __init__(self, plotter, varnames=None, labels=None,
+                 figsize=None, **kwargs):
+        """ Constructor
+
+        Parameters
+        ----------
+        plotter: Plotter instance
+            plotter to use. If a dataframe is provided, the default will be to
+            use Plotter(plotter).
+
+        varnames: seq(str)
+            limit the plot to a subset of variables
+
+        labels: seq(str)
+            replace the variable names by provided labels
+
+        figsize: tuple(height, width)
+            Size of the figure. Default is a square of length 3 * len(varnames)
+
+        kwargs: dict
+            Forwarded to `Plotter.pairplot` method
+        """
+        if isinstance(plotter, Plotter):
+            self.plotter = plotter
+        else:
+            self.plotter = Plotter(plotter)
+
+        if varnames is None:
+            varnames = list(plotter.data.keys())
+
+        if labels is None:
+            labels = varnames
+
+        if (figsize is None):
+            figsize = (3 * len(varnames), 3 * len(varnames))
+
+        plt.figure(figsize=figsize)
+        self.pp = plotter.pairplot(varnames, labels=labels, **kwargs)
+
+    def diag(self, fn='hist', **kwargs):
+        """ Make the diagonal plot using fn """
+        defaults = dict(only1d=True, bins=32, edgecolor='k',
+                        facecolor='None', histtype='step')
+        defaults.update(kwargs)
+        self.pp.map_diag(fn, **defaults)
+        return self
+
+    @property
+    def data(self):
+        """ Get the dataframe directly """
+        return self.pp.data.data
+
+    def add_quantiles(self, quantiles=[0.16, 0.5, 0.84]):
+        """ Adds quantile indications on the diagonal plots """
+        for num, (kx, labelx) in enumerate(zip(self.pp.keys, self.pp.lbls)):
+            ax = self.pp.axes[num][num]
+            q_16, q_50, q_84 = np.quantile(self.data[kx], quantiles)
+            q_m, q_p = q_50 - q_16, q_84 - q_50
+
+            # Format the quantile display.
+            fmt = "{{0:{0}}}".format(".2f").format
+            title = r"${{{0}}}_{{-{1}}}^{{+{2}}}$"
+            title = title.format(fmt(q_50), fmt(q_m), fmt(q_p))
+            title = "{0} = {1}".format(labelx, title)
+            ax.set_title(title, fontsize='medium')
+            ylim = ax.get_ylim()
+            ax.vlines([q_16, q_50, q_84], ylim[0], ylim[1],
+                      color='k', linestyle='--')
+        return self
+
+    def lower(self, fn='plot', **kwargs):
+        """ Makes the lower diagonal plots """
+        self.pp.map_lower('plot', **kwargs)
+        return self
+
+    def upper(self, fn='plot', **kwargs):
+        """ Makes the upper diagonal plots """
+        self.pp.map_upper('plot', **kwargs)
+        return self
 
 
 def _intercept_empty_plot(*args, **kwargs):

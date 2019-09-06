@@ -266,13 +266,26 @@ class HvPlotter(Plotter):
     def scatter(self, xname, yname, *args, **kwargs):
         """ Holoview Points wrapper """
         data = self.get(xname, yname)
+        
+        ax = kwargs.pop('ax', None)
+        if ax is None:
+            ax = plt.gca()
+        self._set_auto_axis_labels(xname, yname, ax=ax)
+
         return hv_scatter(data, xname, yname, *args, **kwargs)
 
     @get_doc_from(hv_scatter)
     def plot(self, xname, yname, *args, **kwargs):
         """ Holoview Line wrapper """
         data = self.get(xname, yname)
-        return hv_plot(data, xname, yname, *args, **kwargs)
+        r = hv_plot(data, xname, yname, *args, **kwargs)
+
+        ax = kwargs.pop('ax', None)
+        if ax is None:
+            ax = plt.gca()
+        self._set_auto_axis_labels(xname, yname, ax=ax)
+
+        return r 
 
     @get_doc_from(hv_corner)
     def corner(self, df, varnames=None, shape=32, labels=None,
