@@ -1187,47 +1187,85 @@ class PairGrid(object):
         return self
 
     def _check_label_visibility(self):
-        axes = [(ax, lbls)
-                for (ax, lbls) in zip(np.ravel(self.axes), self.axes_dims)
-                if ax._visible]
 
-        # All axes but the last line of the grid
-        for ax, _ in axes[:-self.shape[1]]:
-            plt.setp(ax.get_xticklabels(), visible=False)
-            ax.set_xlabel('')
+        upper_visible = self.axes[0][-1]._visible
+        lower_visible = self.axes[-1][0]._visible
+        diago_visible = self.axes[0][0]._visible
+        n_axes = len(self.axes)
 
-        # Check where the x labels need to be put on the diagonal
-        if self.axes[-1][0]._visible:    # lower plots visible
-            ax = self.axes[0, 0]
-            plt.setp(ax.get_xticklabels(), visible=False)
-            ax.yaxis.set_tick_params(labelright=True, labelleft=False)
-            for k in range(1, self.shape[0]):
-                ax = self.axes[k, k]
-                plt.setp(ax.get_xticklabels(), visible=False)
-                ax.yaxis.set_tick_params(labelright=True, labelleft=False)
-        elif self.axes[0][-1]._visible:    # upper plots visible only
-            ax = self.axes[0, 0]
+        if diago_visible:
+            # check the diagonal labels
+            for k in range(n_axes):
+                ax = self.axes[k][k]
+                ax.spines['right'].set_visible(not upper_visible)
+                ax.spines['left'].set_visible(not lower_visible)
+                ax.spines['top'].set_visible(False)
+                plt.setp(ax.get_xticklabels(), visible=not lower_visible)
+                plt.setp(ax.get_yticklabels(),
+                         visible=not (upper_visible and lower_visible))
+                ax.tick_params(top=False)
+                ax.tick_params(left=not lower_visible)
+                ax.tick_params(right=not upper_visible)
+                if lower_visible:
+                    ax.set_xlabel('')
+            ax = self.axes[-1][-1]
+            ax.set_xlabel(self.keys[-1])
             plt.setp(ax.get_xticklabels(), visible=True)
-            ax.set_xlabel(self.keys[0])
-            for k in range(1, self.shape[0]):
-                ax = self.axes[k, k]
-                plt.setp(ax.get_xticklabels(), visible=True)
-                ax.set_xlabel(self.keys[k])
 
-        # make all last grid column show y-labels only on the right
-        if self.axes[0][-1]._visible:    # upper plots visible
-            for e in range(0, self.shape[0] - 1):
-                ax = self.axes[e, -1]
-                plt.setp(ax.get_yticklabels(), visible=True)
-                ax.yaxis.set_label_position('right')
-                ax.yaxis.set_tick_params(labelright=True, labelleft=False)
-                ax.set_ylabel(self.axes_dims[e * self.shape[1]][1])
-            for e in range(1, self.shape[1]):
-                ax = self.axes[0, e]
+        if upper_visible:
+            for i in range(n_axes):
+                for j in range(i + 1, n_axes):
+                    ax = self.axes[i][j]
+                    ax.spines['right'].set_visible(True)
+                    ax.spines['left'].set_visible(False)
+                    ax.spines['top'].set_visible(True)
+                    ax.spines['bottom'].set_visible(False)
+                    ax.tick_params(top=True)
+                    ax.tick_params(bottom=False)
+                    ax.tick_params(right=True)
+                    ax.tick_params(left=False)
+                    plt.setp(ax.get_xticklabels(), visible=False)
+                    plt.setp(ax.get_yticklabels(), visible=False)
+                    ax.set_xlabel('')
+                    ax.set_ylabel('')
+
+            for k in range(1, n_axes):
+                ax = self.axes[0][k]
+                ax.set_xlabel(self.keys[k])
                 plt.setp(ax.get_xticklabels(), visible=True)
-                ax.xaxis.set_label_position('top')
-                ax.xaxis.set_tick_params(labeltop=True, labelbottom=False)
-                ax.set_xlabel(self.keys[e])
+
+            for k in range(0, n_axes - 1):
+                ax = self.axes[k][-1]
+                ax.set_ylabel(self.keys[k])
+                plt.setp(ax.get_yticklabels(), visible=True)
+
+        if lower_visible:
+            for i in range(n_axes):
+                for j in range(0, i):
+                    ax = self.axes[i][j]
+                    ax.spines['right'].set_visible(False)
+                    ax.spines['left'].set_visible(True)
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['bottom'].set_visible(True)
+                    ax.tick_params(top=False)
+                    ax.tick_params(bottom=True)
+                    ax.tick_params(right=False)
+                    ax.tick_params(left=True)
+                    plt.setp(ax.get_xticklabels(), visible=False)
+                    plt.setp(ax.get_yticklabels(), visible=False)
+                    ax.set_xlabel('')
+                    ax.set_ylabel('')
+
+            for k in range(0, n_axes - 1):
+                ax = self.axes[-1][k]
+                ax.set_xlabel(self.keys[k])
+                # ax.set_ylabel('')
+                plt.setp(ax.get_xticklabels(), visible=True)
+
+            for k in range(1, n_axes):
+                ax = self.axes[k][0]
+                ax.set_ylabel(self.keys[k])
+                plt.setp(ax.get_yticklabels(), visible=True)
 
     def _generate_grid(self):
 
