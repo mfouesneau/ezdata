@@ -153,7 +153,12 @@ class DSPlotter(Plotter):
         kwargs.setdefault('kind', 'points')
         if agg is None:
             agg = ds.count()
-        artist = DSArtist(self.get_dataframe(xname, yname),
+
+        other_names = []
+        for input_k in agg.inputs:
+            other_names.extend(input_k.inputs) 
+
+        artist = DSArtist(self.get_dataframe(xname, yname, *other_names),
                           xname, yname, agg=agg, **kwargs)
         artist.axes.add_artist(artist)
         plt.sca(artist.axes)
