@@ -1197,15 +1197,19 @@ class PairGrid(object):
             # check the diagonal labels
             for k in range(n_axes):
                 ax = self.axes[k][k]
-                ax.spines['right'].set_visible(not upper_visible)
-                ax.spines['left'].set_visible(not lower_visible)
-                ax.spines['top'].set_visible(False)
                 plt.setp(ax.get_xticklabels(), visible=not lower_visible)
                 plt.setp(ax.get_yticklabels(),
                          visible=not (upper_visible and lower_visible))
-                ax.tick_params(top=False)
-                ax.tick_params(left=not lower_visible)
-                ax.tick_params(right=not upper_visible)
+                ax.tick_params(top=False,
+                               left=not lower_visible,
+                               right=(not upper_visible) and lower_visible,
+                               labelleft=not lower_visible,
+                               labelright=(not upper_visible
+                                           and lower_visible))
+                ax.spines['right'].set_visible(lower_visible
+                                               and not upper_visible)
+                ax.spines['left'].set_visible(not lower_visible)
+                ax.spines['top'].set_visible(False)
                 if lower_visible:
                     ax.set_xlabel('')
             ax = self.axes[-1][-1]
@@ -1220,12 +1224,18 @@ class PairGrid(object):
                     ax.spines['left'].set_visible(False)
                     ax.spines['top'].set_visible(True)
                     ax.spines['bottom'].set_visible(False)
-                    ax.tick_params(top=True)
-                    ax.tick_params(bottom=False)
-                    ax.tick_params(right=True)
-                    ax.tick_params(left=False)
+                    ax.tick_params(top=True,
+                                   bottom=False,
+                                   left=False,
+                                   right=True,
+                                   labelleft=False,
+                                   labelright=True,
+                                   labelbottom=False,
+                                   labeltop=True)
                     plt.setp(ax.get_xticklabels(), visible=False)
                     plt.setp(ax.get_yticklabels(), visible=False)
+                    ax.xaxis.set_label_position('top')
+                    ax.yaxis.set_label_position('right')
                     ax.set_xlabel('')
                     ax.set_ylabel('')
 
@@ -1247,10 +1257,10 @@ class PairGrid(object):
                     ax.spines['left'].set_visible(True)
                     ax.spines['top'].set_visible(False)
                     ax.spines['bottom'].set_visible(True)
-                    ax.tick_params(top=False)
-                    ax.tick_params(bottom=True)
-                    ax.tick_params(right=False)
-                    ax.tick_params(left=True)
+                    ax.tick_params(top=False,
+                                   bottom=True,
+                                   right=False,
+                                   left=True)
                     plt.setp(ax.get_xticklabels(), visible=False)
                     plt.setp(ax.get_yticklabels(), visible=False)
                     ax.set_xlabel('')
@@ -1259,7 +1269,6 @@ class PairGrid(object):
             for k in range(0, n_axes - 1):
                 ax = self.axes[-1][k]
                 ax.set_xlabel(self.keys[k])
-                # ax.set_ylabel('')
                 plt.setp(ax.get_xticklabels(), visible=True)
 
             for k in range(1, n_axes):
@@ -1542,12 +1551,19 @@ class CornerPlot():
         plt.figure(figsize=figsize)
         self.pp = plotter.pairplot(varnames, labels=labels, **kwargs)
 
-    def diag(self, fn='hist', **kwargs):
+    def diag(self, fn=None, **kwargs):
         """ Make the diagonal plot using fn """
         defaults = dict(only1d=True, bins=32, edgecolor='k',
                         facecolor='None', histtype='step')
-        defaults.update(kwargs)
-        self.pp.map_diag(fn, **defaults)
+        if fn is None:
+            defaults = dict(only1d=True, bins=32, edgecolor='k',
+                            facecolor='None', histtype='step')
+            defaults.update(kwargs)
+            self.pp.map_diag('hist', **defaults)
+        else:
+            defaults = dict(only1d=True)
+            defaults.update(kwargs)
+            self.pp.map_diag(fn, **defaults)
         return self
 
     @property
