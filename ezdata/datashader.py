@@ -25,7 +25,8 @@ except ImportError:
     pass
 
 
-class DSArtist(mimage._ImageBase):
+# class DSArtist(mimage._ImageBase):
+class DSArtist(mimage.AxesImage):
     """ Artist view to interface datashader canvas with Matplotlib """
 
     def __init__(self, data, xname, yname,
@@ -55,7 +56,8 @@ class DSArtist(mimage._ImageBase):
                    unsampled=False):
         """ Generate the image content """
         trans = self.get_transform()
-        (x_1, x_2), (y_1, y_2) = self.axes.get_xlim(), self.axes.get_ylim()
+        # (x_1, x_2), (y_1, y_2) = self.axes.get_xlim(), self.axes.get_ylim()
+        x_1, x_2, y_1, y_2 = self.get_extent()
         bbox = Bbox(np.array([[x_1, y_1], [x_2, y_2]]))
         transformed_bbox = TransformedBbox(bbox, trans)
 
@@ -71,7 +73,10 @@ class DSArtist(mimage._ImageBase):
                         x_range=x_range, y_range=y_range)
         ds_func = getattr(cvs, self.kind, self.kind)
         img = ds_func(self.data, self.xname, self.yname, self.agg)
-        img = np.flipud(img)
+        if x_1 > x_2:
+            img = np.fliplr(img)
+        if y_1 < y_2:
+            img = np.flipud(img)
         img = np.ma.masked_invalid(img)
         vmin = self.vmin or np.nanmin(img)
         vmax = self.vmax or np.nanmax(img)
@@ -79,13 +84,13 @@ class DSArtist(mimage._ImageBase):
         self.set_clim(np.nanmin(img) + 1 * (self.vmin is None), np.nanmax(img))
         if self.alpha_below is not None:
             img = np.ma.masked_less_equal(img, self.alpha_below, copy=False)
-        self.set_array(img)
+        self.set_data(img)
         return self._make_image(img, bbox, transformed_bbox, self.axes.bbox,
                                 magnification, unsampled=unsampled)
 
     def get_extent(self):
         """ returns the image extension """
-        x_1, y_1, x_2 = self.axes.get_xlim()
+        x_1, x_2 = self.axes.get_xlim()
         y_1, y_2 = self.axes.get_ylim()
         return (x_1, x_2, y_1, y_2)
 
