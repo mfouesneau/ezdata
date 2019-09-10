@@ -63,10 +63,12 @@ class DSArtist(mimage._ImageBase):
         plot_width = int(dims[3] + 0.5) // self.spread
         plot_height = int(dims[2] + 0.5) // self.spread
 
+        x_range = min(x_1, x_2), max(x_1, x_2)
+        y_range = min(y_1, y_2), max(y_1, y_2)
+
         cvs = ds.Canvas(plot_width=plot_width,
                         plot_height=plot_height,
-                        x_range=(x_1, x_2),
-                        y_range=(y_1, y_2))
+                        x_range=x_range, y_range=y_range)
         ds_func = getattr(cvs, self.kind, self.kind)
         img = ds_func(self.data, self.xname, self.yname, self.agg)
         img = np.flipud(img)
@@ -156,7 +158,7 @@ class DSPlotter(Plotter):
 
         other_names = []
         for input_k in agg.inputs:
-            other_names.extend(input_k.inputs) 
+            other_names.extend(input_k.inputs)
 
         artist = DSArtist(self.get_dataframe(xname, yname, *other_names),
                           xname, yname, agg=agg, **kwargs)
