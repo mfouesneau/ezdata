@@ -25,7 +25,6 @@ except ImportError:
     pass
 
 
-# class DSArtist(mimage._ImageBase):
 class DSArtist(mimage.AxesImage):
     """ Artist view to interface datashader canvas with Matplotlib """
 
