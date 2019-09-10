@@ -393,6 +393,8 @@ class DictDataFrame(dict):
     def __getitem__(self, k):
         try:
             return dict.__getitem__(self, k)
+        except KeyError:
+            return self.evalexpr(k)
         except Exception:
             return self.__class__({a: v[k] for a, v in self.items()})
 
