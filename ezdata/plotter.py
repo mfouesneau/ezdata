@@ -1213,7 +1213,7 @@ class PairGrid(object):
                 if lower_visible:
                     ax.set_xlabel('')
             ax = self.axes[-1][-1]
-            ax.set_xlabel(self.keys[-1])
+            ax.set_xlabel(self.lbls[-1])
             plt.setp(ax.get_xticklabels(), visible=True)
 
         if upper_visible:
@@ -1241,12 +1241,12 @@ class PairGrid(object):
 
             for k in range(1, n_axes):
                 ax = self.axes[0][k]
-                ax.set_xlabel(self.keys[k])
+                ax.set_xlabel(self.lbls[k])
                 plt.setp(ax.get_xticklabels(), visible=True)
 
             for k in range(0, n_axes - 1):
                 ax = self.axes[k][-1]
-                ax.set_ylabel(self.keys[k])
+                ax.set_ylabel(self.lbls[k])
                 plt.setp(ax.get_yticklabels(), visible=True)
 
         if lower_visible:
@@ -1268,12 +1268,12 @@ class PairGrid(object):
 
             for k in range(0, n_axes - 1):
                 ax = self.axes[-1][k]
-                ax.set_xlabel(self.keys[k])
+                ax.set_xlabel(self.lbls[k])
                 plt.setp(ax.get_xticklabels(), visible=True)
 
             for k in range(1, n_axes):
                 ax = self.axes[k][0]
-                ax.set_ylabel(self.keys[k])
+                ax.set_ylabel(self.lbls[k])
                 plt.setp(ax.get_yticklabels(), visible=True)
 
     def _generate_grid(self):
@@ -1300,11 +1300,11 @@ class PairGrid(object):
             if (xk > 0):
                 plt.setp(ax.get_yticklabels(), visible=False)
             else:
-                ax.set_ylabel(keys[yk])
+                ax.set_ylabel(self.lbls[yk])
             if (yk < nlines - 1):
                 plt.setp(ax.get_xticklabels(), visible=False)
             else:
-                ax.set_xlabel(keys[xk])
+                ax.set_xlabel(self.lbls[xk])
             ax.set_visible(False)
             self.axes[yk, xk] = ax
 
