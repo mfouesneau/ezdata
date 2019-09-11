@@ -87,6 +87,10 @@ class DSArtist(mimage.AxesImage):
         return self._make_image(img, bbox, transformed_bbox, self.axes.bbox,
                                 magnification, unsampled=unsampled)
 
+    @property
+    def _extent(self):
+        return self.get_extent()
+
     def get_extent(self):
         """ returns the image extension """
         x_1, x_2 = self.axes.get_xlim()
