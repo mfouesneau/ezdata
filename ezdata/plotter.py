@@ -922,7 +922,7 @@ class Plotter(object):
         if labels is None:
             labels = {}
 
-        lst = [Plotter(g, label=labels.get(k, k)) for k, g in r]
+        lst = [self.__class__(g, label=labels.get(k, k)) for k, g in r]
         return Group(lst, title=key).set_options(**kwargs)
 
     def all_against(self, key, select=None, labels=None, **kwargs):
