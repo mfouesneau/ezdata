@@ -77,7 +77,7 @@ COLOR_LOOKUP = {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7',
                 'white': '#FFFFFF', 'whitesmoke': '#F5F5F5',
                 'yellow': '#FFFF00', 'yellowgreen': '#9ACD32'}
 
-other_colors = (colors.BASE_COLORS, colors.CSS4_COLORS, 
+OTHER_COLORS = (colors.BASE_COLORS, colors.CSS4_COLORS, 
                 colors.TABLEAU_COLORS, colors.XKCD_COLORS)
 
 
@@ -120,7 +120,7 @@ def rgb(x):
         elif x in COLOR_LOOKUP:
             return hex_to_rgb(COLOR_LOOKUP[x])
         else:
-            for registered in other_colors:
+            for registered in OTHER_COLORS:
                 try:
                     return tuple(int(k * 256) for k in registered[x])
                 except KeyError:
