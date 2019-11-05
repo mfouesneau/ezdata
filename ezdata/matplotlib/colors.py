@@ -1,4 +1,11 @@
+try: 
+    basestring
+except:
+    basestring = str
+        
 from matplotlib import colors
+from matplotlib.colors import LinearSegmentedColormap
+
 
 # Lookup of web color names to their hex codes.
 COLOR_LOOKUP = {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7',
@@ -110,10 +117,6 @@ def rgb(x):
     >>> rgb((255, 255, 255))
     (255, 255, 255)
     """
-    try: 
-        basestring
-    except:
-        basestring = str
     if isinstance(x, basestring):
         if x.startswith('#'):
             return hex_to_rgb(x)
@@ -153,7 +156,6 @@ Elevation = ["aqua", "sandybrown", "limegreen", "green", "green", "darkgreen",
 
 def generate_cmap_from_colors(seq, N=256, name='user'):
     """ Make a color map from registered colors or rgb or hex values"""
-    from matplotlib.colors import LinearSegmentedColormap
     if isinstance(seq, basestring):
         values = ('w', normed_rgb(seq))
     else:
