@@ -2858,7 +2858,7 @@ class SimpleTable(object):
         getter = operator.itemgetter(*_key)
 
         for k, grp in itertools.groupby(self.data, getter):
-            t = self.__class__(np.hstack(grp))
+            t = self.__class__(np.hstack(tuple(grp)))
             t.header = self.header
             t._aliases = self._aliases
             t._units = self._units

@@ -88,7 +88,16 @@ def _arg_groupby(data, key):
     """ create an iterator which returns (key, index) grouped by each
     value of key(value) """
     val = data[key]
-    ind = sorted(zip(val, range(len(val))), key=lambda x: x[0])
+    
+    def parse_missing_data(x, dtype=str):
+        """ Make sure null/missing values are still sorted """
+        cond = x in [None, '', 'None', 'none', 
+                     float('nan'), 'nan', 'NaN',
+                     'null', 'Null',
+                     float('inf'), 'inf']
+        return cond, x
+    
+    ind = sorted(zip(val, range(len(val))), key=lambda x: parse_missing_data(x[0]))
 
     for k, grp in itertools.groupby(ind, lambda x: x[0]):
         index = [k[1] for k in grp]
@@ -913,7 +922,7 @@ class Plotter(object):
         if labels is None:
             labels = {}
 
-        lst = [Plotter(g, label=labels.get(k, k)) for k, g in r]
+        lst = [self.__class__(g, label=labels.get(k, k)) for k, g in r]
         return Group(lst, title=key).set_options(**kwargs)
 
     def all_against(self, key, select=None, labels=None, **kwargs):
