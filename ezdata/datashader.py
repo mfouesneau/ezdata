@@ -10,6 +10,7 @@ import matplotlib.image as mimage
 from matplotlib.transforms import (Bbox, TransformedBbox, BboxTransform)
 
 from .plotter import Plotter
+from .dask import dummy
 
 _ACCEPTED_DF_TYPE = []
 try:
@@ -128,7 +129,7 @@ class DSPlotter(Plotter):
         if pd_ is None:
             raise ImportError("You need at least pandas to use this class")
         if isinstance(self.data, tuple(_ACCEPTED_DF_TYPE)):
-            return self.data
+            return dummy(self.data)
         try:
             # one of SimpleTable or DictDataFrame maybe?
             df_ = self.data.to_pandas(keys=args)
