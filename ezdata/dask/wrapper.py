@@ -23,7 +23,7 @@ try:
                 return pd_.DataFrame.__getitem__(self, key)
             except KeyError:
                 pd_.DataFrame.__setitem__(self, key, self.eval(key))
-            return dd_.DataFrame.__getitem__(self, key)
+            return pd_.DataFrame.__getitem__(self, key)
 
     map_[pd_.DataFrame] = DummyPandas
 
