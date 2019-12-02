@@ -46,6 +46,8 @@ import numpy as np
 import itertools
 from matplotlib.ticker import MaxNLocator
 
+from . import astro
+
 PY3 = sys.version_info[0] > 2
 
 if PY3:
@@ -88,15 +90,15 @@ def _arg_groupby(data, key):
     """ create an iterator which returns (key, index) grouped by each
     value of key(value) """
     val = data[key]
-    
+
     def parse_missing_data(x, dtype=str):
         """ Make sure null/missing values are still sorted """
-        cond = x in [None, '', 'None', 'none', 
+        cond = x in [None, '', 'None', 'none',
                      float('nan'), 'nan', 'NaN',
                      'null', 'Null',
                      float('inf'), 'inf']
         return cond, x
-    
+
     ind = sorted(zip(val, range(len(val))), key=lambda x: parse_missing_data(x[0]))
 
     for k, grp in itertools.groupby(ind, lambda x: x[0]):
@@ -891,6 +893,31 @@ class Plotter(object):
         if 'labels' not in kwargs:
             kwargs['labels'] = dataset
         return ax.boxplot(d, **kwargs)
+
+    @get_doc_from('healpix_plot', astro)
+    def healpix_plot(self, *args, **kwargs):
+        return astro.healpix_plot(self.data, *args, **kwargs)
+
+    @get_doc_from('project_aitoff', astro)
+    def plot_aitoff(self, alpha, delta,
+                    radians=False, **kwargs):
+        """plot aitoff projection
+        (https://en.wikipedia.org/wiki/Aitoff_projection) projection
+
+        Parameters
+        ----------
+        alpha: array
+            azimuth angle
+        delta: array
+            polar angle
+        radians: boolean
+            input and output in radians (True), or degrees (False)
+        """
+        x, y = astro.project_aitoff(self.data[alpha],
+                                    self.data[delta],
+                                    radians=radians)
+        return self.__class__(dict(aitoff_x=x, aitoff_y=y))\
+                   .plot('x', 'y', **kwargs)
 
     def groupby(self, key, select=None, labels=None, **kwargs):
         """ Make individual plots per group
