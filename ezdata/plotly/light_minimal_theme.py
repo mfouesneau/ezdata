@@ -56,6 +56,8 @@ def get_theme(default_fontsize='12pt'):
         titlefont=dict(size=get_font_size('x-large')),
         margin=dict(t=80, r=100),
         showlegend=True,
+        paper_bgcolor='white',
+        plot_bgcolor='white',
         legend=dict(
             font=dict(
                 family='serif',
