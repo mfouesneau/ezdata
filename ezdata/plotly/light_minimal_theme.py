@@ -47,7 +47,7 @@ def get_theme(default_fontsize='12pt'):
     """ Generate the theme for the given font size """
 
     def get_font_size(which):
-        return _get_font_size(which, default_fontsize)
+        return int(_get_font_size(which, default_fontsize)[:-2])
 
     DEFAULT_PLOTLY_LAYOUT = go.Layout(
         hovermode=False,
@@ -56,6 +56,8 @@ def get_theme(default_fontsize='12pt'):
         titlefont=dict(size=get_font_size('x-large')),
         margin=dict(t=80, r=100),
         showlegend=True,
+        paper_bgcolor='white',
+        plot_bgcolor='white',
         legend=dict(
             font=dict(
                 family='serif',
