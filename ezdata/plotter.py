@@ -611,7 +611,11 @@ class Plotter(object):
 
     @property
     def keys(self):
-        return self.data.keys()
+        try:
+            return self.data.keys()
+        except AttributeError:
+            # Dataframes from pandas and dask
+            return self.data.columns
 
     def _value_from_data(self, key):
         """ Parse a key for existing data in the dataframe. If not found,

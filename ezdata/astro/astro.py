@@ -379,7 +379,10 @@ def healpix_plot(self, healpix_expression='healpix', healpix_level=8,
     from scipy.stats import binned_statistic
 
     if grid is None:
-        what_ = find_matching_parenthesis(what)[0]
+        try:
+            what_ = find_matching_parenthesis(what)[0]
+        except TypeError:
+            what_ = what
         func = what.replace(what_, '')[:-2]  # remove ()
         if what_ in ('*', ):
             value = self[healpix_expression]
