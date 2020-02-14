@@ -98,3 +98,30 @@ class MidpointNormalize(colors.Normalize):
         # simple example...
         x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
         return np.ma.masked_array(np.interp(value, x, y))
+
+    
+class Sqrt(DummyNorm):
+    """ Sqrt normalization """
+    def _transform(self, value, out=None):
+        delta = np.sqrt(self.vmax) - np.sqrt(self.vmin)
+        return (np.sqrt(value) - np.sqrt(self.vmin)) / float(delta)
+
+    def _inverse_transform(self, value, out=None):
+        delta = np.power(self.vmax, 2) - np.power(self.vmin, 2)
+        return np.power(delta * value + np.power(self.vmin, 2))
+
+    
+class Power(DummyNorm):
+    """ Power normalization """
+    def __init__(self, power_value=2, vmin=None, vmax=None, clip=False):
+        self.power_ = power_value
+        self.inv_power_ = 1. / power_value
+        colors.Normalize.__init__(self, vmin, vmax, clip)
+        
+    def _transform(self, value, out=None):
+        delta = np.power(self.vmax, self.power_) - np.power(self.vmin, self.power_)
+        return (np.power(value, self.power_) - np.power(self.vmin, self.power_)) / float(delta)
+
+    def _inverse_transform(self, value, out=None):
+        delta = np.power(self.vmax, self.inv_power_) - np.power(self.vmin, self.inv_power_)
+        return np.power(delta * value + np.power(self.vmin, self.inv_power_))
