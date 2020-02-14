@@ -40,7 +40,7 @@ class DSArtist(mimage._ImageBase):
 
         self.vmin = kwargs.pop('vmin', None)
         self.vmax = kwargs.pop('vmax', None)
-        norm_ =  kwargs.pop('norm', None)
+        kwargs['norm'] =  self.parse_norm(kwargs.pop('norm', None))
         self.alpha_below = kwargs.pop('alpha_below', None)
         super().__init__(ax, **kwargs)
 
@@ -54,7 +54,6 @@ class DSArtist(mimage._ImageBase):
         ax.set_ylim((np.nanmin(data[yname]), np.nanmax(data[yname])))
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
-        self.set_norm(norm_)
     
     def parse_norm(self, **kwargs):
         """ Allows one to use a string shortcut to defined the norm keyword
