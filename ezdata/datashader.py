@@ -80,13 +80,14 @@ class DSArtist(mimage._ImageBase):
                       }
             try:
                 norm_ = eval(norm, mapped, colors.__dict__)
-                if norm_ == eznorm.HistEq:
-                    return norm_(self)
-                elif isinstance(norm_, type):
+                if isinstance(norm_, type):
+                    if norm_ == eznorm.HistEq:
+                        return norm_(self)
                     return norm_()
                 else:
                     return norm_
             except Exception as e:
+                print(e)
                 return norm
 
     def make_image(self, renderer, magnification=1.0,
