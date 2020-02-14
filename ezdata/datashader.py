@@ -55,8 +55,7 @@ class DSArtist(mimage._ImageBase):
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
     
-    @staticmethod
-    def parse_norm(**kwargs):
+    def parse_norm(self, **kwargs):
         """ Allows one to use a string shortcut to defined the norm keyword
         
         e.g.: parse_norm('log10')
@@ -75,11 +74,15 @@ class DSArtist(mimage._ImageBase):
             mapped = {'arcsinh': eznorm.Arcsinh,
                       'log10': colors.LogNorm,
                       'sqrt': eznorm.Sqrt,
-                      'pow': eznorm.Power
+                      'pow': eznorm.Power,
+                      'histeq': eznorm.HistEq,
+                      'midpoint': eznorm.MidpointNormalize
                       }
             try:
                 norm_ = eval(norm, mapped, colors.__dict__)
-                if isinstance(norm_, type):
+                if norm_ == eznorm.HistEq:
+                    return norm_(self)
+                elif isinstance(norm_, type):
                     return norm_()
                 else:
                     return norm_
