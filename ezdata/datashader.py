@@ -8,6 +8,8 @@ import pylab as plt
 
 import matplotlib.image as mimage
 from matplotlib.transforms import (Bbox, TransformedBbox, BboxTransform)
+from matplotlib import colors
+from .matplotlib import norm as eznorm
 
 from .plotter import Plotter
 from .dask import dummy
@@ -38,6 +40,7 @@ class DSArtist(mimage._ImageBase):
 
         self.vmin = kwargs.pop('vmin', None)
         self.vmax = kwargs.pop('vmax', None)
+        kwargs['norm'] = self.parse_norm(kwargs.pop('norm', None))
         self.alpha_below = kwargs.pop('alpha_below', None)
         super().__init__(ax, **kwargs)
 
@@ -51,6 +54,37 @@ class DSArtist(mimage._ImageBase):
         ax.set_ylim((np.nanmin(data[yname]), np.nanmax(data[yname])))
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
+    
+    @staticmethod
+    def parse_norm(**kwargs):
+        """ Allows one to use a string shortcut to defined the norm keyword
+        
+        e.g.: parse_norm('log10')
+        
+        Parameters
+        ----------
+        kwargs: dict
+            keywords given to the artist
+         
+        Returns
+        -------
+        norm: colors.Normalize object
+        """
+        norm = kwargs.pop('norm', None)
+        if norm is not None:
+            mapped = {'arcsinh': eznorm.Arcsinh,
+                      'log10': colors.LogNorm,
+                      'sqrt': eznorm.Sqrt,
+                      'pow': eznorm.Power
+                      }
+            try:
+                norm_ = eval(norm, mapped, colors.__dict__)
+                if isinstance(norm_, type):
+                    return norm_()
+                else:
+                    return norm_
+            except Exception as e:
+                return norm
 
     def make_image(self, renderer, magnification=1.0,
                    unsampled=False):
