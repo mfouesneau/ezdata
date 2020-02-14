@@ -40,7 +40,7 @@ class DSArtist(mimage._ImageBase):
 
         self.vmin = kwargs.pop('vmin', None)
         self.vmax = kwargs.pop('vmax', None)
-        kwargs['norm'] = self.parse_norm(kwargs.pop('norm', None))
+        kwargs['norm'] = self.parse_norm(**kwargs)
         self.alpha_below = kwargs.pop('alpha_below', None)
         super().__init__(ax, **kwargs)
 
