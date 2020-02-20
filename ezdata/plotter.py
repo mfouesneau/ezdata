@@ -1237,7 +1237,8 @@ class PairGrid(object):
             # check the diagonal labels
             for k in range(n_axes):
                 ax = self.axes[k][k]
-                plt.setp(ax.get_xticklabels(), visible=not lower_visible or (k == n_axes-1))
+                plt.setp(ax.get_xticklabels(), rotation=self.ticksrotation, 
+                         visible=not lower_visible or (k == n_axes-1))
                 plt.setp(ax.get_yticklabels(),
                          visible=not (upper_visible and lower_visible))
                 ax.tick_params(top=False,
@@ -1272,8 +1273,10 @@ class PairGrid(object):
                                    labelright=True,
                                    labelbottom=False,
                                    labeltop=True)
-                    plt.setp(ax.get_xticklabels(), visible=False or (i == 0))
-                    plt.setp(ax.get_yticklabels(), visible=False or (j == n_axes -1))
+                    plt.setp(ax.get_xticklabels(), rotation=self.ticksrotation,
+                             visible=False or (i == 0))
+                    plt.setp(ax.get_yticklabels(), rotation=self.ticksrotation,
+                             visible=False or (j == n_axes -1))
                     ax.xaxis.set_label_position('top')
                     ax.yaxis.set_label_position('right')
                     ax.set_xlabel('')
@@ -1301,8 +1304,10 @@ class PairGrid(object):
                                    bottom=True,
                                    right=False,
                                    left=True)
-                    plt.setp(ax.get_xticklabels(), visible=False or (i == n_axes -1))
-                    plt.setp(ax.get_yticklabels(), visible=False or (j == 0))
+                    plt.setp(ax.get_xticklabels(), rotation=self.ticksrotation,
+                             visible=False or (i == n_axes -1))
+                    plt.setp(ax.get_yticklabels(), rotation=self.ticksrotation,
+                             visible=False or (j == 0))
                     ax.set_xlabel('')
                     ax.set_ylabel('')
 
