@@ -8,6 +8,7 @@ from math import ceil
 
 import numpy as np
 import pandas as pd
+from glob import glob
 import h5py
 
 from dask.base import tokenize
@@ -108,8 +109,11 @@ def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
 
     Parameters
     ----------
-    group_uri : str
-        URI to the HDF5 group storing the table.
+    filepath: str, seq(str)
+        path to the filename or pattern to the tables to open at once.
+        This may be also a sequence of files that will be concatenated.
+    grouppath : str
+        tree path to the HDF5 group storing the table.
     keys : list, optional
         list of HDF5 Dataset keys, default is to use all keys in the group
     chunksize : int, optional
@@ -128,6 +132,24 @@ def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
     Learn more about the `dask <https://docs.dask.org/en/latest/>`_ project.
 
     """
+    # handle pattern input
+    try:
+        glob_ = glob(filepath)
+    except TypeError:
+        glob_ = filepath
+    print(glob_)
+    
+    if len(glob_) > 1:
+        dfs = [read_table(name_k, grouppath=grouppath, keys=keys, 
+                          chunksize=chunksize, index=index, lock=lock) 
+               for name_k in glob_]
+        return dask.dataframe.concat(dfs, interleave_partitions=True)
+    else:
+        filepath = glob_[0]
+    
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(filepath + ' does not seem to exist.')
+    
     nrows, keys, meta, categoricals = _get_group_info(filepath,
                                                       grouppath,
                                                       keys)
@@ -154,3 +176,18 @@ def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
     if index is not None:
         _df = _df.set_index(index, sorted=True, drop=False)
     return _df
+
+
+def read_vaex_table(filepath, grouppath='/table/columns', 
+                    keys=None, chunksize=int(10e6),
+                    index=None, lock=None):
+    """
+    Shortcut to :py:func:`read_table` 
+    where the default grouppath is set to Vaex format.
+
+    Returns
+    -------
+    :py:class:`dask.dataframe.DataFrame`
+    """
+    return read_table(name_k, grouppath=grouppath, keys=keys, 
+                      chunksize=chunksize, index=index, lock=lock)
