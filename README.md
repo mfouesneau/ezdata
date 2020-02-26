@@ -21,6 +21,12 @@ Example notebook in the `examples` directory
 
 [![nbviewer](https://img.shields.io/badge/render%20on-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/mfouesneau/ezdata/blob/master/examples/examples.ipynb)
 
+## Installation
+
+```
+pip install git+https://github.com/mfouesneau/ezdata (--upgrade)
+```
+
 ## Why?
 
 I always found myself writing snippets around `numpy`, `matplotlib`, pandas and
