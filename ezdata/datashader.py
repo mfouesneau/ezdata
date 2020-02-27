@@ -48,12 +48,43 @@ class DSArtist(mimage._ImageBase):
         self.data = data
         self.xname = xname
         self.yname = yname
-        self.agg = agg
+        self.agg = self.parse_agg(agg=agg)
         self.axes = ax
         self.spread = spread
         ax.set_ylim((np.nanmin(data[yname]), np.nanmax(data[yname])))
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
+        
+    def parse_agg(self, **kwargs):
+        """ Allows one to use a string shortcut to defined the agg keyword
+        
+        e.g.: parse_agg('mean(z)'), parse_agg('var(x + y)')
+        
+        Parameters
+        ----------
+        kwargs: dict
+            keywords given to the artist
+         
+        Returns
+        -------
+        agg: datashader.reduction function
+        """
+        if agg is not None:
+            try:
+                name = ''
+                for k in agg:
+                    if k != '(':
+                        name += k
+                    else:
+                        break
+                rest_ = agg.replace(name + '(', '').replace(')', '')
+                fn_ = ['any', 'count', 'sum', 'min', 'max', 'count_cat', 
+                       'mean', 'var', 'std', 'first', 'last', 'mode']
+                mapped = {k: getattr(datashader.reductions, k) for k in fn_}
+                agg_ = mapped.get(name, None)
+                return agg_(rest_)
+            except Exception as e:
+                return agg
     
     def parse_norm(self, **kwargs):
         """ Allows one to use a string shortcut to defined the norm keyword
