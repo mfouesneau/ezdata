@@ -54,7 +54,8 @@ class DSArtist(mimage._ImageBase):
         ax.set_ylim((np.nanmin(data[yname]), np.nanmax(data[yname])))
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
-        
+    
+    @classmethod
     def parse_agg(self, **kwargs):
         """ Allows one to use a string shortcut to defined the agg keyword
         
@@ -87,6 +88,7 @@ class DSArtist(mimage._ImageBase):
             except Exception as e:
                 return agg
     
+    @classmethod
     def parse_norm(self, **kwargs):
         """ Allows one to use a string shortcut to defined the norm keyword
         
@@ -238,14 +240,16 @@ class DSPlotter(Plotter):
         """
         kwargs.setdefault('kind', 'points')
         if agg is None:
-            agg = ds.count()
+            agg_ = ds.count()
+        else:
+            agg_ = DSArtist.parse_agg(agg)
 
         other_names = []
-        for input_k in agg.inputs:
+        for input_k in agg_.inputs:
             other_names.extend(input_k.inputs)
 
         artist = DSArtist(self.get_dataframe(xname, yname, *other_names),
-                          xname, yname, agg=agg, **kwargs)
+                          xname, yname, agg=agg_, **kwargs)
         artist.axes.add_artist(artist)
         plt.sca(artist.axes)
         self._set_auto_axis_labels(xname, yname, ax=artist.axes)
