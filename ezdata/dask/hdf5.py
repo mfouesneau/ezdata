@@ -189,5 +189,5 @@ def read_vaex_table(filepath, grouppath='/table/columns',
     -------
     :py:class:`dask.dataframe.DataFrame`
     """
-    return read_table(name_k, grouppath=grouppath, keys=keys, 
+    return read_table(filepath, grouppath=grouppath, keys=keys, 
                       chunksize=chunksize, index=index, lock=lock)
