@@ -84,11 +84,10 @@ class DSArtist(mimage._ImageBase):
             rest_ = agg.replace(name + '(', '').replace(')', '')
             fn_ = ['any', 'count', 'sum', 'min', 'max', 'count_cat', 
                    'mean', 'var', 'std', 'first', 'last', 'mode']
-            mapped = {k: getattr(datashader.reductions, k) for k in fn_}
+            mapped = {k: getattr(ds.reductions, k) for k in fn_}
             agg_ = mapped.get(name, None)
             return agg_(rest_)
         except Exception as e:
-            raise(e)
             return agg
     
     def parse_norm(self, **kwargs):
