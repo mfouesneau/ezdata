@@ -143,7 +143,7 @@ def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
         dfs = [read_table(name_k, grouppath=grouppath, keys=keys, 
                           chunksize=chunksize, index=index, lock=lock) 
                for name_k in glob_]
-        return dask.dataframe.concat(dfs, interleave_partitions=True)
+        return dd.concat(dfs, interleave_partitions=True)
     else:
         filepath = glob_[0]
     
