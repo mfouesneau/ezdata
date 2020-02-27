@@ -122,7 +122,7 @@ class DSArtist(mimage._ImageBase):
                 else:
                     return norm_
             except Exception as e:
-                print(e)
+                raise(e)
                 return norm
             
     def set_norm(self, norm):
