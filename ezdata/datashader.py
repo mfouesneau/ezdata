@@ -69,6 +69,7 @@ class DSArtist(mimage._ImageBase):
         -------
         agg: datashader.reduction function
         """
+        agg = kwargs.get('agg', None)
         if agg is not None:
             try:
                 name = ''
