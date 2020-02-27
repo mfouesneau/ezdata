@@ -5,10 +5,11 @@ the structure of it.
 """
 from __future__ import absolute_import, division, print_function
 from math import ceil
+from glob import glob
+import os
 
 import numpy as np
 import pandas as pd
-from glob import glob
 import h5py
 
 from dask.base import tokenize
