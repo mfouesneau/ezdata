@@ -71,22 +71,24 @@ class DSArtist(mimage._ImageBase):
         agg: datashader.reduction function
         """
         agg = kwargs.get('agg', None)
-        if agg is not None:
-            try:
-                name = ''
-                for k in agg:
-                    if k != '(':
-                        name += k
-                    else:
-                        break
-                rest_ = agg.replace(name + '(', '').replace(')', '')
-                fn_ = ['any', 'count', 'sum', 'min', 'max', 'count_cat', 
-                       'mean', 'var', 'std', 'first', 'last', 'mode']
-                mapped = {k: getattr(datashader.reductions, k) for k in fn_}
-                agg_ = mapped.get(name, None)
-                return agg_(rest_)
-            except Exception as e:
-                return agg
+        if agg is None:
+            return
+    
+        try:
+            name = ''
+            for k in agg:
+                if k != '(':
+                    name += k
+                else:
+                    break
+            rest_ = agg.replace(name + '(', '').replace(')', '')
+            fn_ = ['any', 'count', 'sum', 'min', 'max', 'count_cat', 
+                   'mean', 'var', 'std', 'first', 'last', 'mode']
+            mapped = {k: getattr(datashader.reductions, k) for k in fn_}
+            agg_ = mapped.get(name, None)
+            return agg_(rest_)
+        except Exception as e:
+            return agg
     
     def parse_norm(self, **kwargs):
         """ Allows one to use a string shortcut to defined the norm keyword
