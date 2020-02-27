@@ -40,7 +40,7 @@ class DSArtist(mimage._ImageBase):
 
         self.vmin = kwargs.pop('vmin', None)
         self.vmax = kwargs.pop('vmax', None)
-        kwargs['norm'] =  self.parse_norm(norm=kwargs.pop('norm', None))
+        kwargs['norm'] = self.parse_norm(norm=kwargs.pop('norm', None))
         self.alpha_below = kwargs.pop('alpha_below', None)
         super().__init__(ax, **kwargs)
 
@@ -54,18 +54,18 @@ class DSArtist(mimage._ImageBase):
         ax.set_ylim((np.nanmin(data[yname]), np.nanmax(data[yname])))
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
-    
+
     @staticmethod
     def parse_agg(**kwargs):
         """ Allows one to use a string shortcut to defined the agg keyword
-        
+
         e.g.: parse_agg('mean(z)'), parse_agg('var(x + y)')
-        
+
         Parameters
         ----------
         kwargs: dict
             keywords given to the artist
-         
+
         Returns
         -------
         agg: datashader.reduction function
@@ -73,7 +73,7 @@ class DSArtist(mimage._ImageBase):
         agg = kwargs.get('agg', None)
         if agg is None:
             return
-    
+
         try:
             name = ''
             for k in agg:
@@ -82,49 +82,50 @@ class DSArtist(mimage._ImageBase):
                 else:
                     break
             rest_ = agg.replace(name + '(', '').replace(')', '')
-            fn_ = ['any', 'count', 'sum', 'min', 'max', 'count_cat', 
+            fn_ = ['any', 'count', 'sum', 'min', 'max', 'count_cat',
                    'mean', 'var', 'std', 'first', 'last', 'mode']
             mapped = {k: getattr(ds.reductions, k) for k in fn_}
             agg_ = mapped.get(name, None)
             return agg_(rest_)
-        except Exception as e:
+        except Exception:
             return agg
-    
+
     def parse_norm(self, **kwargs):
         """ Allows one to use a string shortcut to defined the norm keyword
-        
+
         e.g.: parse_norm('log10')
-        
+
         Parameters
         ----------
         kwargs: dict
             keywords given to the artist
-         
+
         Returns
         -------
         norm: colors.Normalize object
         """
         norm = kwargs.pop('norm', None)
-        if norm is not None:
-            mapped = {'arcsinh': eznorm.Arcsinh,
-                      'log10': colors.LogNorm,
-                      'sqrt': eznorm.Sqrt,
-                      'pow': eznorm.Power,
-                      'histeq': eznorm.HistEq,
-                      'midpoint': eznorm.MidpointNormalize
-                      }
-            try:
-                norm_ = eval(norm, mapped, colors.__dict__)
-                if isinstance(norm_, type):
-                    if norm_ == eznorm.HistEq:
-                        return norm_(self)
-                    return norm_()
-                else:
-                    return norm_
-            except Exception as e:
-                raise(e)
-                return norm
-            
+
+        if norm is None:
+            return None
+
+        mapped = {'arcsinh': eznorm.Arcsinh,
+                  'log10': colors.LogNorm,
+                  'sqrt': eznorm.Sqrt,
+                  'pow': eznorm.Power,
+                  'histeq': eznorm.HistEq,
+                  'midpoint': eznorm.MidpointNormalize
+                  }
+        try:
+            norm_ = eval(norm, mapped, colors.__dict__)
+            if isinstance(norm_, type):
+                if norm_ == eznorm.HistEq:
+                    return norm_(self)
+                return norm_()
+            return norm_
+        except Exception:
+            return norm
+
     def set_norm(self, norm):
         """ update norm """
         self.update({'norm': self.parse_norm(norm='histeq')})
