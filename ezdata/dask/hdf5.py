@@ -138,7 +138,6 @@ def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
         glob_ = glob(filepath)
     except TypeError:
         glob_ = filepath
-    print(glob_)
     
     if len(glob_) > 1:
         dfs = [read_table(name_k, grouppath=grouppath, keys=keys, 
