@@ -241,7 +241,7 @@ class DSPlotter(Plotter):
         if agg is None:
             agg_ = ds.count()
         else:
-            agg_ = DSArtist.parse_agg(agg)
+            agg_ = DSArtist.parse_agg(agg=agg)
 
         other_names = []
         for input_k in agg_.inputs:
