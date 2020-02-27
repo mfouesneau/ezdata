@@ -55,8 +55,8 @@ class DSArtist(mimage._ImageBase):
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
     
-    @classmethod
-    def parse_agg(self, **kwargs):
+    @staticmethod
+    def parse_agg(**kwargs):
         """ Allows one to use a string shortcut to defined the agg keyword
         
         e.g.: parse_agg('mean(z)'), parse_agg('var(x + y)')
@@ -88,7 +88,6 @@ class DSArtist(mimage._ImageBase):
             except Exception as e:
                 return agg
     
-    @classmethod
     def parse_norm(self, **kwargs):
         """ Allows one to use a string shortcut to defined the norm keyword
         
