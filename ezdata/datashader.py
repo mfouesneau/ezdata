@@ -88,6 +88,7 @@ class DSArtist(mimage._ImageBase):
             agg_ = mapped.get(name, None)
             return agg_(rest_)
         except Exception as e:
+            raise(e)
             return agg
     
     def parse_norm(self, **kwargs):
