@@ -47,6 +47,9 @@ try:
             except KeyError:
                 dd_.DataFrame.__setitem__(self, key, self.eval(key))
             return dd_.DataFrame.__getitem__(self, key)
+        
+        def __contains__(self, obj):
+            return obj in self.columns 
 
     map_[dd_.DataFrame] = DummyDask
 except ImportError:
