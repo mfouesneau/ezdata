@@ -40,6 +40,7 @@ class DSArtist(mimage._ImageBase):
 
         self.vmin = kwargs.pop('vmin', None)
         self.vmax = kwargs.pop('vmax', None)
+        self.label = kwargs.pop('label', None)
         kwargs['norm'] = self.parse_norm(norm=kwargs.pop('norm', None))
         self.alpha_below = kwargs.pop('alpha_below', None)
         super().__init__(ax, **kwargs)
@@ -126,6 +127,9 @@ class DSArtist(mimage._ImageBase):
         except Exception:
             return norm
 
+    def get_label(self):
+        return self.label
+    
     def set_norm(self, norm):
         """ update norm """
         self.update({'norm': self.parse_norm(norm='histeq')})
