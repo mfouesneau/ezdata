@@ -10,6 +10,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 import matplotlib.legend as mlegend
 from matplotlib.legend import Legend
+import pylab as plt
 
 
 class HandlerColormap(HandlerBase):
