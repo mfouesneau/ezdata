@@ -206,9 +206,9 @@ def add_column_healpix(self, name="healpix", longitude="ra", latitude="dec",
     theta = np.pi / 2 - self[latitude] * scale
     hp_index = hp.ang2pix(hp.order2nside(healpix_order), theta, phi, nest=nest)
     try:
-        self.add_column("healpix", hp_index)
+        self.add_column(name, hp_index)
     except AttributeError:
-        self['healpix'] = hp_index
+        self[name] = hp_index
     return self
 
 
