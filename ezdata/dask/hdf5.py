@@ -6,6 +6,7 @@ the structure of it.
 from __future__ import absolute_import, division, print_function
 from math import ceil
 from glob import glob
+from collections import OrderedDict
 import os
 
 import numpy as np
@@ -138,18 +139,18 @@ def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
         glob_ = glob(filepath)
     except TypeError:
         glob_ = filepath
-    
+
     if len(glob_) > 1:
-        dfs = [read_table(name_k, grouppath=grouppath, keys=keys, 
-                          chunksize=chunksize, index=index, lock=lock) 
+        dfs = [read_table(name_k, grouppath=grouppath, keys=keys,
+                          chunksize=chunksize, index=index, lock=lock)
                for name_k in glob_]
         return dd.concat(dfs, interleave_partitions=True)
     else:
         filepath = glob_[0]
-    
+
     if not os.path.exists(filepath):
         raise FileNotFoundError(filepath + ' does not seem to exist.')
-    
+
     nrows, keys, meta, categoricals = _get_group_info(filepath,
                                                       grouppath,
                                                       keys)
@@ -178,16 +179,162 @@ def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
     return _df
 
 
-def read_vaex_table(filepath, grouppath='/table/columns', 
+def read_vaex_table(filepath, grouppath='/table/columns',
                     keys=None, chunksize=int(10e6),
                     index=None, lock=None):
     """
-    Shortcut to :py:func:`read_table` 
+    Shortcut to :py:func:`read_table`
     where the default grouppath is set to Vaex format.
 
     Returns
     -------
     :py:class:`dask.dataframe.DataFrame`
     """
-    return read_table(filepath, grouppath=grouppath, keys=keys, 
+    return read_table(filepath, grouppath=grouppath, keys=keys,
                       chunksize=chunksize, index=index, lock=lock)
+
+
+class _H5Collector:
+    """
+    Extract shapes and dtypes of all array objects in a give hdf5 file
+    It does so recursively and only reports array objects
+
+    Allows one to make statistics and checks, which are necessary to
+    concatenate datasets.
+
+    Properties
+    ----------
+    names: dict
+        field names and shapes
+
+    dtypes: dict
+        contains the dtype of the registered names
+    """
+    def __init__(self):
+        """ Constructor """
+        # Store the columns and shapes in order
+        self.names = OrderedDict()
+        self.dtypes = {}
+
+    def __repr__(self):
+        """ Representation """
+        max_key_length = max([len(k) for k in self.names.keys()])
+        fmt = ('{key:>' + str(max_key_length) + 's}: {dtype:10s} {shape}')
+        text = [fmt.format(key=key, shape=shape, dtype=str(self.dtypes[key]))
+                for key, shape in self.names.items()]
+        return '\n'.join(text)
+
+    def __call__(self, name, h5obj):
+        """ apply the collector to a new object.
+        This method is called by `h5py.File.visititems`
+        within `_H5Collector.add`
+        """
+        # only h5py datasets have dtype attribute, so we can search on this
+        if hasattr(h5obj, 'dtype'):
+
+            if name not in self.dtypes:
+                self.dtypes[name] = h5obj.dtype
+            elif self.dtypes[name] != h5obj.dtype:
+                raise RuntimeError('Type mismatch in {0:s}'.format(name))
+            try:
+                shape_x, shape_y = h5obj.shape
+                shape = self.names.get(name, (0, shape_y))
+                if shape_y != shape[1]:
+                    raise RuntimeError('Shape mismatch in {0:s}'.format(name))
+                self.names[name] = shape[0] + shape_x, shape_y
+            except ValueError:
+                shape_x, = h5obj.shape
+                shape, = self.names.get(name, (0,))
+                self.names[name] = (shape + shape_x, )
+
+    def add(self, filename):
+        """ Add filename to the collection
+
+        Parameters
+        ----------
+        filename : str
+            file to add to the collection
+
+        Returns
+        -------
+        self: _H5Collector
+            itself
+        """
+        with h5py.File(filename, 'r') as datafile:
+            datafile.visititems(self)
+        return self
+
+
+def concatenate(*args, **kwargs):
+    """ Concatenate multiple HDF5 files with the same structure
+
+    This routine is the most flexible I could make. It takes any datashapes
+    (contrary to vaex, pandas, dask etc) and copies the data into to final
+    output file.
+
+    Parameters
+    ----------
+    args: seq(str)
+        filenames to concatenate
+
+    pattern: str, optional
+        pattern of files to concatenate
+
+    outputfile: str, optional
+        filename of the output file containing the data
+
+    verbose: bool, optional
+        set to display information
+
+    returns
+    -------
+    outputfile: str
+        the filename of the result
+    """
+    pattern = kwargs.get('pattern', None)
+    if (pattern is None) and (not args):
+        raise RuntimeError('Must provide either a pattern or a list of files')
+    if not args:
+        args = glob(pattern)
+
+    output = kwargs.get('outputfile', None)
+    if output is None:
+        output = '.'.join(args[0].split('.')[:-1]) + '_concat.hdf5'
+
+    verbose = kwargs.get('verbose', False)
+
+    def info(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
+
+    info('Collecting information from {0:d} files'.format(len(args)))
+    hls = _H5Collector()
+    for fname in args:
+        hls.add(fname)
+
+    with h5py.File(output, 'w') as outputfile:
+
+        # creating the final file with all empty structure
+        info('Creating {0:s} with empty structure'.format(output))
+        for name, shape in hls.names.items():
+            group_name = name.split('/')
+            group_ = '/'.join(group_name[:-1])
+            name_ = group_name[-1]
+            dtype = hls.dtypes[name]
+            outputfile.create_group(group_)\
+                      .create_dataset(name_, shape=shape, dtype=dtype)
+
+        # copy the data over
+        index = 0
+        info('Copying data')
+        for fname in args:
+            with h5py.File(fname, 'r') as fin:
+                keys = list(hls.names.keys())
+                length = len(fin[keys[0]])
+                for name in hls.names.keys():
+                    data = fin[name]
+                    length = len(data)
+                    outputfile[name][index: length + index] = data[:]
+            index += length
+
+    return output
