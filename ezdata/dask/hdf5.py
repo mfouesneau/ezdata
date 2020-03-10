@@ -102,98 +102,6 @@ def _restore_categories(data, categorical_columns):
     return data
 
 
-def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
-               index=None, lock=None):
-    """
-    Create a dask dataframe around a column-oriented table in HDF5.
-
-    A table is a group containing equal-length 1D datasets.
-
-    Parameters
-    ----------
-    filepath: str, seq(str)
-        path to the filename or pattern to the tables to open at once.
-        This may be also a sequence of files that will be concatenated.
-    grouppath : str
-        tree path to the HDF5 group storing the table.
-    keys : list, optional
-        list of HDF5 Dataset keys, default is to use all keys in the group
-    chunksize : int, optional
-        Chunk size
-    index : str, optional
-        Sorted column to use as index
-    lock : multiprocessing.Lock, optional
-        Lock to serialize HDF5 read/write access. Default is no lock.
-
-    Returns
-    -------
-    :py:class:`dask.dataframe.DataFrame`
-
-    Notes
-    -----
-    Learn more about the `dask <https://docs.dask.org/en/latest/>`_ project.
-
-    """
-    # handle pattern input
-    try:
-        glob_ = glob(filepath)
-    except TypeError:
-        glob_ = filepath
-
-    if len(glob_) > 1:
-        dfs = [read_table(name_k, grouppath=grouppath, keys=keys,
-                          chunksize=chunksize, index=index, lock=lock)
-               for name_k in glob_]
-        return dd.concat(dfs, interleave_partitions=True)
-    else:
-        filepath = glob_[0]
-
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(filepath + ' does not seem to exist.')
-
-    nrows, keys, meta, categoricals = _get_group_info(filepath,
-                                                      grouppath,
-                                                      keys)
-    # Make a unique task name
-    token = tokenize(filepath, grouppath, chunksize, keys)
-    task_name = "daskify-h5py-table-" + token
-
-    # Partition the table
-    divisions = (0,) + tuple(range(-1, nrows, chunksize))[1:]
-    if divisions[-1] != nrows - 1:
-        divisions = divisions + (nrows - 1,)
-
-    # Build the task graph
-    dsk = {}
-    for i in range(0, int(ceil(nrows / chunksize))):
-        slc = slice(i * chunksize, (i + 1) * chunksize)
-        data_dict = (_slice_group, filepath, grouppath, keys, slc, lock)
-        if categoricals:
-            data_dict = (_restore_categories, data_dict, categoricals)
-        dsk[task_name, i] = (pd.DataFrame, data_dict, None, meta.columns)
-
-    # Generate ddf from dask graph
-    _df = dd.DataFrame(dsk, task_name, meta, divisions)
-    if index is not None:
-        _df = _df.set_index(index, sorted=True, drop=False)
-    return _df
-
-
-def read_vaex_table(filepath, grouppath='/table/columns',
-                    keys=None, chunksize=int(10e6),
-                    index=None, lock=None):
-    """
-    Shortcut to :py:func:`read_table`
-    where the default grouppath is set to Vaex format.
-
-    Returns
-    -------
-    :py:class:`dask.dataframe.DataFrame`
-    """
-    return read_table(filepath, grouppath=grouppath, keys=keys,
-                      chunksize=chunksize, index=index, lock=lock)
-
-
 class _H5Collector:
     """
     Extract shapes and dtypes of all array objects in a give hdf5 file
@@ -263,6 +171,122 @@ class _H5Collector:
         with h5py.File(filename, 'r') as datafile:
             datafile.visititems(self)
         return self
+
+
+def _ignore_multidimensional_keys(filename, grouppath=None):
+    """ Check keys to make sure not multi-dimensional arrays are provided """
+    hls = _H5Collector()
+    if grouppath is not None:
+        with h5py.File(filename, 'r') as datafile:
+            datafile[grouppath].visititems(hls)
+    else:
+        hls.add(filename)
+
+    keys = [name.replace('/data', '')
+            for (name, shape) in hls.names.items() if len(shape) < 2]
+    return keys
+
+
+def read_table(filepath, grouppath='/', keys=None, chunksize=int(10e6),
+               index=None, lock=None, ignore_nd_data=True):
+    """
+    Create a dask dataframe around a column-oriented table in HDF5.
+
+    A table is a group containing equal-length 1D datasets.
+
+    Parameters
+    ----------
+    filepath: str, seq(str)
+        path to the filename or pattern to the tables to open at once.
+        This may be also a sequence of files that will be concatenated.
+    grouppath : str
+        tree path to the HDF5 group storing the table.
+    keys : list, optional
+        list of HDF5 Dataset keys, default is to use all keys in the group
+    chunksize : int, optional
+        Chunk size
+    index : str, optional
+        Sorted column to use as index
+    lock : multiprocessing.Lock, optional
+        Lock to serialize HDF5 read/write access. Default is no lock.
+    ignore_nd_data: bool, optional
+        Set to safely ignore keys of multidimensional data arrays
+        Note that dask/pandas DataFrame do not support multidimensional data
+
+    Returns
+    -------
+    :py:class:`dask.dataframe.DataFrame`
+
+    Notes
+    -----
+    Learn more about the `dask <https://docs.dask.org/en/latest/>`_ project.
+
+    """
+    # handle pattern input
+    try:
+        glob_ = glob(filepath)
+    except TypeError:
+        glob_ = filepath
+
+    if len(glob_) > 1:
+        dfs = [read_table(name_k, grouppath=grouppath, keys=keys,
+                          chunksize=chunksize, index=index, lock=lock)
+               for name_k in glob_]
+        return dd.concat(dfs, interleave_partitions=True)
+    else:
+        filepath = glob_[0]
+
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(filepath + ' does not seem to exist.')
+
+    if ignore_nd_data:
+        keys_1d = _ignore_multidimensional_keys(filepath, grouppath)
+    if keys is None:
+        keys = keys_1d
+    else:
+        keys = [key for key in keys if key in keys_1d]
+
+    nrows, keys, meta, categoricals = _get_group_info(filepath,
+                                                      grouppath,
+                                                      keys)
+    # Make a unique task name
+    token = tokenize(filepath, grouppath, chunksize, keys)
+    task_name = "daskify-h5py-table-" + token
+
+    # Partition the table
+    divisions = (0,) + tuple(range(-1, nrows, chunksize))[1:]
+    if divisions[-1] != nrows - 1:
+        divisions = divisions + (nrows - 1,)
+
+    # Build the task graph
+    dsk = {}
+    for i in range(0, int(ceil(nrows / chunksize))):
+        slc = slice(i * chunksize, (i + 1) * chunksize)
+        data_dict = (_slice_group, filepath, grouppath, keys, slc, lock)
+        if categoricals:
+            data_dict = (_restore_categories, data_dict, categoricals)
+        dsk[task_name, i] = (pd.DataFrame, data_dict, None, meta.columns)
+
+    # Generate ddf from dask graph
+    _df = dd.DataFrame(dsk, task_name, meta, divisions)
+    if index is not None:
+        _df = _df.set_index(index, sorted=True, drop=False)
+    return _df
+
+
+def read_vaex_table(filepath, grouppath='/table/columns',
+                    keys=None, chunksize=int(10e6),
+                    index=None, lock=None, ignore_nd_data=True):
+    """
+    Shortcut to :py:func:`read_table`
+    where the default grouppath is set to Vaex format.
+
+    Returns
+    -------
+    :py:class:`dask.dataframe.DataFrame`
+    """
+    return read_table(filepath, grouppath=grouppath, keys=keys,
+                      chunksize=chunksize, index=index, lock=lock)
 
 
 def concatenate(*args, **kwargs):
