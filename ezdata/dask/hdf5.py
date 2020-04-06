@@ -138,7 +138,7 @@ class _H5Collector:
         within `_H5Collector.add`
         """
         # only h5py datasets have dtype attribute, so we can search on this
-        if hasattr(h5obj, 'dtype'):
+        if hasattr(h5obj, 'dtype') and hasattr(h5obj, 'shape'):
 
             if name not in self.dtypes:
                 self.dtypes[name] = h5obj.dtype
