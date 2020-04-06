@@ -309,7 +309,7 @@ def concatenate(*args, **kwargs):
 
     verbose: bool, optional
         set to display information
-
+    
     returns
     -------
     outputfile: str
@@ -351,7 +351,7 @@ def concatenate(*args, **kwargs):
         # copy the data over
         index = 0
         info('Copying data')
-        for fname in args:
+        for iternum, fname in enumerate(1, args):
             with h5py.File(fname, 'r') as fin:
                 keys = list(hls.names.keys())
                 length = len(fin[keys[0]])
@@ -360,5 +360,6 @@ def concatenate(*args, **kwargs):
                     length = len(data)
                     outputfile[name][index: length + index] = data[:]
             index += length
+            info('... [{0:d} / {1:d}] - done with {2:s}'.format(iternum, len(args), fname))
 
     return output
