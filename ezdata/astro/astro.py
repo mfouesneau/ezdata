@@ -101,7 +101,7 @@ def get_healpix_grid(data, healpix_level):
     return grid
 
 
-def healpix_grid_plot(fgrid, what_label=None, colormap="afmhot",
+def healpix_grid_plot(fgrid, what_label=None, cmap="afmhot",
                       grid_limits=None, healpix_input="equatorial",
                       healpix_output="galactic", image_size=800, nest=True,
                       norm=None, title="", smooth=None,
@@ -109,7 +109,7 @@ def healpix_grid_plot(fgrid, what_label=None, colormap="afmhot",
     """ Plot data from healpix configuration
     what_label: str
         colorbar label
-    colormap: str or cmap instance
+    cmap: str or cmap instance
         colormap used by matplotlib
     healpix_input: str
         Specificy if the healpix index is in
@@ -140,7 +140,6 @@ def healpix_grid_plot(fgrid, what_label=None, colormap="afmhot",
     import warnings
 
     # Compatibility filter
-    colormap = kwargs.pop('cmap', colormap)
     vmin = kwargs.pop('vmin', None)
     vmax = kwargs.pop('vmax', None)
     if grid_limits is None:
@@ -169,8 +168,8 @@ def healpix_grid_plot(fgrid, what_label=None, colormap="afmhot",
         coord = None
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
-        func(grid, unit=what_label, rot=rotation, nest=nest,
-             title=title, coord=coord, cmap=colormap, hold=True,
+        return func(grid, unit=what_label, rot=rotation, nest=nest,
+             title=title, coord=coord, cmap=cmap, hold=True,
              xsize=image_size, min=grid_min, norm=norm,
              max=grid_max, cbar=colorbar, **kwargs)
 
@@ -341,14 +340,14 @@ def flatten(lst):
 def healpix_plot(self, healpix_expression='healpix', healpix_level=8,
                  what='count(*)', grid=None,
                  healpix_input='equatorial', healpix_output='galactic',
-                 norm=None, colormap='afmhot', grid_limits=None,
+                 norm=None, cmap='afmhot', grid_limits=None,
                  image_size=800, nest=True,
                  title='', smooth=None, colorbar=True,
                  rotation=(0, 0, 0), **kwargs):
     """ Plot data from healpix configuration
     what_label: str
         colorbar label
-    colormap: str or cmap instance
+    cmap: str or cmap instance
         colormap used by matplotlib
     grid: ndarray
         healpix grid of size nside2npix(2 ** level)
@@ -394,10 +393,10 @@ def healpix_plot(self, healpix_expression='healpix', healpix_level=8,
                                  value, bins=bins, statistic=func).statistic
 
 
-    return healpix_grid_plot(grid, what_label=what, colormap=colormap,
+    return healpix_grid_plot(grid, what_label=what,
                              grid_limits=grid_limits,
                              healpix_input=healpix_input,
                              healpix_output=healpix_output,
                              image_size=image_size, nest=nest, norm=norm,
                              title=title, smooth=smooth,
-                             colorbar=colorbar, rotation=rotation, **kwargs)
+                             cmap=cmap, rotation=rotation, **kwargs)
