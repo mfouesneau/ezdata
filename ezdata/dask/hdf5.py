@@ -351,7 +351,7 @@ def concatenate(*args, **kwargs):
         # copy the data over
         index = 0
         info('Copying data')
-        for iternum, fname in enumerate(1, args):
+        for iternum, fname in enumerate(args, 1):
             with h5py.File(fname, 'r') as fin:
                 keys = list(hls.names.keys())
                 length = len(fin[keys[0]])
