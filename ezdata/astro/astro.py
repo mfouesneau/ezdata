@@ -389,10 +389,10 @@ def healpix_plot(self, healpix_expression='healpix', healpix_level=8,
         else:
             value = self[what_]
         binned_statistic_ = dask_compatibility(binned_statistic)
+        bins = np.arange(nside2npix(2 ** healpix_level) + 1)
         grid = binned_statistic_(self[healpix_expression],
-                                 value,
-                                 bins=np.arange(nside2npix(2 ** 8) + 1),
-                                 statistic=func).statistic
+                                 value, bins=bins, statistic=func).statistic
+
 
     return healpix_grid_plot(grid, what_label=what, colormap=colormap,
                              grid_limits=grid_limits,
