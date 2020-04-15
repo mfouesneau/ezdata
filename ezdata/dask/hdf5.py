@@ -363,3 +363,73 @@ def concatenate(*args, **kwargs):
             info('... [{0:d} / {1:d}] - done with {2:s}'.format(iternum, len(args), fname))
 
     return output
+
+
+def to_vaex_file(ds, output, grouppath='/table/columns',
+                 keys=None, **kwargs):
+    """
+    export a dask dataframe into a vaex formatted hdf5 file.
+
+    Parameters
+    ----------
+    ds: dask.DataFrame
+        data to export
+
+    output: str
+        filename of the exported table
+
+    grouppath: str
+        vaex default path to the dataset
+
+    keys: sequence(str)
+        subset of columns to export (default all)
+
+    verbose: bool
+        set to have information messages
+    """
+
+    dtypes = ds.dtypes.to_dict()
+    if keys is not None:
+        dtypes = dict(((name, dtypes[name]) for name in keys))
+
+    length = ds.shape[0].compute()
+
+    verbose = kwargs.get('verbose', False)
+
+    def info(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
+
+    def construct_vaex_path(name):
+        path = '{grouppath:s}/{name:s}/data'
+        return path.format(name=name, grouppath=grouppath)
+
+    with h5py.File(output, 'w') as outputfile:
+
+        # creating the final file with all empty structure
+        info('Creating {0:s} with empty structure'.format(output))
+        for name, dtype in dtypes.items():
+            group_name = construct_vaex_path(name).split('/')
+            group_ = '/'.join(group_name[:-1])
+            name_ = group_name[-1]
+
+            outputfile.create_group(group_)\
+                      .create_dataset(name_, shape=(length,), dtype=dtype)
+
+        # copy the data over
+        index = 0
+        info('Copying data')
+
+        names = dtypes.keys()
+
+        for part_i in range(ds.npartitions):
+            df = ds.get_partition(part_i).compute()
+            df_size = df.shape[0]
+            for name in names:
+                vaex_name = construct_vaex_path(name)
+                data = df[name].values
+                outputfile[vaex_name][index: df_size + index] = data[:]
+            index += df_size
+            info('... [{0:d} / {1:d}] partition done'.format(part_i,
+                                                             ds.npartitions))
+        return output
