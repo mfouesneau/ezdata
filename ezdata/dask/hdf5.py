@@ -387,18 +387,26 @@ def to_vaex_file(ds, output, grouppath='/table/columns',
     verbose: bool
         set to have information messages
     """
-
-    dtypes = ds.dtypes.to_dict()
-    if keys is not None:
-        dtypes = dict(((name, dtypes[name]) for name in keys))
-
-    length = ds.shape[0].compute()
-
     verbose = kwargs.get('verbose', False)
 
     def info(*args, **kwargs):
         if verbose:
             print(*args, **kwargs)
+
+    dtypes = ds.dtypes.to_dict()
+    if keys is not None:
+        dtypes = dict(((name, dtypes[name]) for name in keys))
+
+    for name, dtype in dtypes.items():
+        if 'numpy.object_' in str(dtype.type):
+            # we have a pandas string that does not work well with h5py
+            maxlen = ds[name].dropna().str.len().max().compute().astype(int)
+            col_type = np.dtype('{0:s}{1:d}'.format('S', maxlen))
+            dtypes[name] = col_type
+            info('Object type conversion: "{0:s}" as "{1:s}"'.format(
+                name, str(col_type)))
+
+    length = ds.shape[0].compute()
 
     def construct_vaex_path(name):
         path = '{grouppath:s}/{name:s}/data'
@@ -427,9 +435,9 @@ def to_vaex_file(ds, output, grouppath='/table/columns',
             df_size = df.shape[0]
             for name in names:
                 vaex_name = construct_vaex_path(name)
-                data = df[name].values
+                data = df[name].values.astype(dtypes[name])
                 outputfile[vaex_name][index: df_size + index] = data[:]
             index += df_size
-            info('... [{0:d} / {1:d}] partition done'.format(part_i,
+            info('... [{0:d} / {1:d}] partition done'.format(part_i + 1,
                                                              ds.npartitions))
         return output
