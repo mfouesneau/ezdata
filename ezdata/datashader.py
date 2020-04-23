@@ -9,7 +9,8 @@ import pylab as plt
 
 import matplotlib.image as mimage
 from matplotlib.transforms import (Bbox, TransformedBbox, BboxTransform)
-from .matplotlib import colors
+from matplotlib import colors
+from .matplotlib import generate_cmap_from_colors
 from .matplotlib import norm as eznorm
 
 from .plotter import Plotter
@@ -302,7 +303,7 @@ class DSPlotter(Plotter):
         color = kwargs.pop('color', None)
         if (kwargs.get('cmap', None) is None) and (color is not None):
             # Do not replace cmap if provided
-            cmap = colors.generate_cmap_from_colors(['w', color])
+            cmap = generate_cmap_from_colors(['w', color])
             kwargs['cmap'] = cmap
         return kwargs
 
