@@ -9,7 +9,7 @@ import pylab as plt
 
 import matplotlib.image as mimage
 from matplotlib.transforms import (Bbox, TransformedBbox, BboxTransform)
-from matplotlib import colors
+from .matplotlib import colors
 from .matplotlib import norm as eznorm
 
 from .plotter import Plotter
@@ -63,10 +63,33 @@ class DSArtist(mimage._ImageBase):
         self.axes = ax
         self.spread = spread
         self.selected_data = None
-        ax.set_ylim((np.nanmin(data[yname]), np.nanmax(data[yname])))
-        ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
+        self.limits = (
+                (np.nanmin(data[xname]), np.nanmax(data[xname])),
+                (np.nanmin(data[yname]), np.nanmax(data[yname])))
+        self._set_xlim()
+        self._set_ylim()
         self.set_array([[1, 1], [1, 1]])
         self.set_selection(selection)
+
+    def _set_ylim(self):
+        ymin, ymax = self.limits[1]
+        for artist in self.axes.artists:
+            try:
+                ymin = min(ymin, min(artist.limits[1]))
+                ymax = max(ymax, max(artist.limits[1]))
+            except AttributeError:
+                pass
+        self.axes.set_ylim(ymin, ymax)
+
+    def _set_xlim(self):
+        xmin, xmax = self.limits[0]
+        for artist in self.axes.artists:
+            try:
+                xmin = min(xmin, min(artist.limits[0]))
+                xmax = max(xmax, max(artist.limits[0]))
+            except AttributeError:
+                pass
+        self.axes.set_xlim(xmin, xmax)
 
     def set_selection(self, selection):
         self.selection = selection
@@ -246,9 +269,14 @@ class DSPlotter(Plotter):
                 )
         return df_
 
-    def parse_selections(self, fn, *args, **kwargs):
+    def _parse_selections(self, fn, *args, **kwargs):
+        """ Parse keywords for potential selection of the data 
 
-        selection = list(kwargs.pop('select', [None]))
+        You might prefer to use `DSPlotter.select()` instead
+        """
+        selection = kwargs.pop('select', [None])
+        if isinstance(selection, basestring):
+            selection = [selection]
         facet = kwargs.pop('facet', False)
         n_selections = len(selection)
         alpha = kwargs.get('alpha', 1.)
@@ -265,6 +293,18 @@ class DSPlotter(Plotter):
                 im = fn(*args, **new_kw)
                 r.append(im)
         return r
+
+    @classmethod
+    def _ds_keywords_compatibility(cls, **kwargs):
+        """ Remove incompatible keyword arguments
+        Make sure the keyword are understood by datashader
+        """
+        color = kwargs.pop('color', None)
+        if (kwargs.get('cmap', None) is None) and (color is not None):
+            # Do not replace cmap if provided
+            cmap = colors.generate_cmap_from_colors(['w', color])
+            kwargs['cmap'] = cmap
+        return kwargs
 
     def plot(self, xname, yname, agg=None, **kwargs):
         """ Plotting standard call
@@ -288,7 +328,7 @@ class DSPlotter(Plotter):
         da: DSArtist instance
             matplotlib artist image used to plot the data
         """
-        return self.parse_selections(self._plot, xname, yname,
+        return self._parse_selections(self._plot, xname, yname,
                                      agg=agg, **kwargs)
 
     def _plot(self, xname, yname, agg=None, **kwargs):
@@ -314,6 +354,7 @@ class DSPlotter(Plotter):
             matplotlib artist image used to plot the data
         """
         kwargs.setdefault('kind', 'points')
+        kwargs = self._ds_keywords_compatibility(**kwargs)
         if agg is None:
             agg_ = ds.count()
         else:
