@@ -1,8 +1,8 @@
-try: 
+try:
     basestring
 except:
     basestring = str
-        
+
 from matplotlib import colors
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -84,7 +84,7 @@ COLOR_LOOKUP = {'aliceblue': '#F0F8FF', 'antiquewhite': '#FAEBD7',
                 'white': '#FFFFFF', 'whitesmoke': '#F5F5F5',
                 'yellow': '#FFFF00', 'yellowgreen': '#9ACD32'}
 
-OTHER_COLORS = (colors.BASE_COLORS, colors.CSS4_COLORS, 
+OTHER_COLORS = (colors.BASE_COLORS, colors.CSS4_COLORS,
                 colors.TABLEAU_COLORS, colors.XKCD_COLORS)
 
 
@@ -136,17 +136,21 @@ def rgb(x):
         raise TypeError("Don't know how to convert {0} to RGB".format(x))
     return x
 
+
 def normed_rgb(x):
-    return tuple(k / 256. for k in rgb(x))
+    try:
+        return tuple(k / 256. for k in rgb(x))
+    except TypeError:
+        return x
 
 #   Example palettes
 
 # Copied from from bokeh.palettes.Greys9
-Greys9 = ["#000000", "#252525", "#525252", "#737373", "#969696", 
+Greys9 = ["#000000", "#252525", "#525252", "#737373", "#969696",
           "#bdbdbd", "#d9d9d9", "#f0f0f0", "#ffffff"]
 
 # Adapted from matplotlib.cm.hot to be more uniform at the high end
-Hot = ["black", "maroon", "darkred", "red", "orangered", "darkorange", 
+Hot = ["black", "maroon", "darkred", "red", "orangered", "darkorange",
        "orange", "gold", "yellow", "white"]
 
 # pseudo terrestial elevation ramp
