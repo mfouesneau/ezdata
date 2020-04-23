@@ -2,6 +2,7 @@
 Uses Datashader to plot things
 """
 from __future__ import absolute_import
+import sys
 import datashader as ds
 import numpy as np
 import pylab as plt
@@ -28,11 +29,20 @@ except ImportError:
     pass
 
 
+PY3 = sys.version_info[0] > 2
+
+if PY3:
+    basestring = (str, bytes)
+else:
+    basestring = (str, unicode)
+
+
 class DSArtist(mimage._ImageBase):
     """ Artist view to interface datashader canvas with Matplotlib """
 
     def __init__(self, data, xname, yname,
                  agg=None, kind='points', ax=None, spread=1,
+                 selection=None,
                  **kwargs):
         """ Constructor """
         if ax is None:
@@ -52,9 +62,21 @@ class DSArtist(mimage._ImageBase):
         self.agg = self.parse_agg(agg=agg)
         self.axes = ax
         self.spread = spread
+        self.selected_data = None
         ax.set_ylim((np.nanmin(data[yname]), np.nanmax(data[yname])))
         ax.set_xlim((np.nanmin(data[xname]), np.nanmax(data[xname])))
         self.set_array([[1, 1], [1, 1]])
+        self.set_selection(selection)
+
+    def set_selection(self, selection):
+        self.selection = selection
+        if self.selection is not None:
+            if isinstance(selection, basestring):
+                indexes = self.data.eval(self.selection)
+                self.selected_data = self.data.where(indexes)
+            else:
+                self.selected_data = self.data[self.selection]
+        self.changed()
 
     @staticmethod
     def parse_agg(**kwargs):
@@ -129,7 +151,7 @@ class DSArtist(mimage._ImageBase):
 
     def get_label(self):
         return self.label
-    
+
     def set_norm(self, norm):
         """ update norm """
         self.update({'norm': self.parse_norm(norm='histeq')})
@@ -155,7 +177,9 @@ class DSArtist(mimage._ImageBase):
                         plot_height=plot_height,
                         x_range=x_range, y_range=y_range)
         ds_func = getattr(cvs, self.kind, self.kind)
-        img = ds_func(self.data, self.xname, self.yname, self.agg)
+        img = ds_func(self.selected_data if self.selection else self.data,
+                      self.xname, self.yname, self.agg)
+        self.ds = dict(canvas=cvs, func=ds_func, img=img)
         if x_1 > x_2:
             img = np.fliplr(img)
         if y_1 < y_2:
@@ -222,7 +246,52 @@ class DSPlotter(Plotter):
                 )
         return df_
 
+    def parse_selections(self, fn, *args, **kwargs):
+
+        selection = list(kwargs.pop('select', [None]))
+        facet = kwargs.pop('facet', False)
+        n_selections = len(selection)
+        alpha = kwargs.get('alpha', 1.)
+
+        new_kw = {}
+        new_kw.update(kwargs)
+        new_kw['alpha'] = alpha / n_selections
+
+        r = []
+        if not facet:
+            for num, select in enumerate(selection, 1):
+                new_kw['alpha'] = min(alpha / n_selections * num, 1)
+                new_kw['select'] = select
+                im = fn(*args, **new_kw)
+                r.append(im)
+        return r
+
     def plot(self, xname, yname, agg=None, **kwargs):
+        """ Plotting standard call
+
+        Parameters
+        ----------
+        xname: str
+            xname or variable expression
+
+        yname: str
+            yname or variable expression
+
+        agg: ds.aggregator instance
+            how to aggregate the data (default: count())
+
+        kwargs: dict
+            passed to the various actors
+
+        returns
+        -------
+        da: DSArtist instance
+            matplotlib artist image used to plot the data
+        """
+        return self.parse_selections(self._plot, xname, yname,
+                                     agg=agg, **kwargs)
+
+    def _plot(self, xname, yname, agg=None, **kwargs):
         """ Plotting standard call
 
         Parameters
@@ -254,8 +323,9 @@ class DSPlotter(Plotter):
         for input_k in agg_.inputs:
             other_names.extend(input_k.inputs)
 
+        select = kwargs.pop('select', None)
         artist = DSArtist(self.get_dataframe(xname, yname, *other_names),
-                          xname, yname, agg=agg_, **kwargs)
+                          xname, yname, agg=agg_, selection=select, **kwargs)
         artist.axes.add_artist(artist)
         plt.sca(artist.axes)
         self._set_auto_axis_labels(xname, yname, ax=artist.axes)
