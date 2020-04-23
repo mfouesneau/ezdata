@@ -114,6 +114,19 @@ def _groupby(data, key):
         yield k, data.__class__(d)
 
 
+def _safe_compute(val):
+    """ Return the computed value if necessary
+
+    Dask DataFrame may sometimes need to call compute to interact
+    properly with some calls. This method if a shortcut to make sure
+    we work with values when necessary.
+    """
+    try:
+        return val.compute()
+    except AttributeError:
+        return val
+
+
 class Group(object):
     """ Group multiple plotter instances into one container. This offers any
     function of :class:`Plotter` through an implicit loop of any method It
@@ -194,7 +207,7 @@ class Group(object):
         """
         axes = []
         n = len(self)
-        ncols = self.ncols
+        ncols = min(self.ncols, n)
         nlines = n // ncols
         if ncols * nlines < n:
             nlines += 1
@@ -448,7 +461,7 @@ class Group(object):
                 k0 = next_cyclekw()
                 kw.update(k0)
                 kw.update(kwargs)
-                if (l.data is None) or (np.size(l.data) == 0):
+                if (l.data is None) or _safe_compute(np.size(l.data) == 0):
                     a = None
                 else:
                     a = getattr(l, methodname)(*args, **kw)
@@ -621,16 +634,69 @@ class Plotter(object):
         """ Parse a key for existing data in the dataframe. If not found,
         returns the key directly """
         if not isinstance(key, basestring):
-            return key
+            value = key
         elif key not in self.data:
             if self.allow_expressions:
                 try:
-                    return evalexpr(self.data, key)
+                    value = evalexpr(self.data, key)
                 except Exception:
                     pass
-            return key
+            value = key
         else:
-            return self.data[key]
+            value = self.data[key]
+
+            return _safe_compute(value)
+
+    def _select_data(self, selection):
+        """ Parse indices or expression and return selected data"""
+        try:
+            return self.data.selectWhere('*', selection)
+        except ValueError:
+            return self.data.select('*', indices=np.where(selection)[0])
+        except AttributeError or KeyError:
+            if selection is None:
+                return self.data
+            elif isinstance(selection, basestring):
+                indexes = self.data.eval(selection)
+                return self.data.where(indexes)
+            else:
+                return self.data[selection]
+
+    def select(self, selection, labels=None, **kwargs):
+        """ Returns a Group from selected data
+
+        Parameters
+        ----------
+        selection: str or expression or sequence of these
+            the selection could be a sequence of selections
+            A given selection on the data can be an string or the evaluation of
+            it (boolean array or dask array)
+
+        labels: sequence(str)
+            the labels of the selections used in the Group
+
+        Returns
+        -------
+        group: Group instance
+            group of plotters (one per selection)
+        """
+        if isinstance(selection, (basestring, type(None))):
+            selection = [selection]
+
+        if labels is None:
+            labels = []
+            for num, select in enumerate(selection, 1):
+                if isinstance(select, (basestring, type(None))):
+                    labels.append(str(select))
+                else:
+                    labels.append('subset {0:d}'.format(num))
+
+        elements = []
+        for select, label in zip(selection, labels):
+            subdata = self._select_data(select)
+            elements.append(self.__class__(subdata, label=label))
+
+        return Group(elements).set_options(**kwargs)
 
     def evalexpr(self, expr, exprvars=None, dtype=float):
         """ evaluate expression based on the data and external variables
@@ -1237,7 +1303,7 @@ class PairGrid(object):
             # check the diagonal labels
             for k in range(n_axes):
                 ax = self.axes[k][k]
-                plt.setp(ax.get_xticklabels(), rotation=self.ticksrotation, 
+                plt.setp(ax.get_xticklabels(), rotation=self.ticksrotation,
                          visible=not lower_visible or (k == n_axes-1))
                 plt.setp(ax.get_yticklabels(),
                          visible=not (upper_visible and lower_visible))
