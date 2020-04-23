@@ -271,7 +271,7 @@ class DSPlotter(Plotter):
         return df_
 
     def _parse_selections(self, fn, *args, **kwargs):
-        """ Parse keywords for potential selection of the data 
+        """ Parse keywords for potential selection of the data
 
         You might prefer to use `DSPlotter.select()` instead
         """
@@ -293,6 +293,8 @@ class DSPlotter(Plotter):
                 new_kw['select'] = select
                 im = fn(*args, **new_kw)
                 r.append(im)
+        if len(r) == 1:
+            return r[0]
         return r
 
     @classmethod
