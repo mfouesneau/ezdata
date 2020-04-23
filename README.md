@@ -21,6 +21,8 @@ Example notebook in the `examples` directory
 
 [![nbviewer](https://img.shields.io/badge/render%20on-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/mfouesneau/ezdata/blob/master/examples/examples.ipynb)
 
+As this package is rapidly evolving some features are only presented in the examples.
+
 ## Installation
 
 ```
