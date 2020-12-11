@@ -15,6 +15,11 @@ import h5py
 
 from dask.base import tokenize
 import dask.dataframe as dd
+try:
+    from tqdm import tqdm
+except:
+    # if not present still works
+    tqdm = lambda x: x
 
 
 def _get_columns(grp, key):
@@ -309,7 +314,7 @@ def concatenate(*args, **kwargs):
 
     verbose: bool, optional
         set to display information
-    
+
     returns
     -------
     outputfile: str
@@ -333,7 +338,7 @@ def concatenate(*args, **kwargs):
 
     info('Collecting information from {0:d} files'.format(len(args)))
     hls = _H5Collector()
-    for fname in args:
+    for fname in tqdm(args):
         hls.add(fname)
 
     with h5py.File(output, 'w') as outputfile:
@@ -351,7 +356,7 @@ def concatenate(*args, **kwargs):
         # copy the data over
         index = 0
         info('Copying data')
-        for iternum, fname in enumerate(args, 1):
+        for iternum, fname in enumerate(tqdm(args), 1):
             with h5py.File(fname, 'r') as fin:
                 keys = list(hls.names.keys())
                 length = len(fin[keys[0]])
