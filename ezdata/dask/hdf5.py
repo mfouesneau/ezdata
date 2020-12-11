@@ -147,6 +147,10 @@ class _H5Collector:
 
             if name not in self.dtypes:
                 self.dtypes[name] = h5obj.dtype
+            elif (self.dtypes[name].char == 'S') & (h5obj.dtype.char == 'S'):
+                # String length updates
+                dt_size = max(1, max(self.dtypes[name].itemsize, h5obj.dtype.itemsize))
+                self.dtypes[name] = np.dtype('S' + str(dt_size))
             elif self.dtypes[name] != h5obj.dtype:
                 raise RuntimeError('Type mismatch in {0:s}'.format(name))
             try:

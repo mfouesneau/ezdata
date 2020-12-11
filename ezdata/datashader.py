@@ -178,8 +178,7 @@ class DSArtist(mimage._ImageBase):
 
     def set_norm(self, norm):
         """ update norm """
-        self.update({'norm': self.parse_norm(norm='histeq')})
-        self.changed()
+        super().set_norm(self.parse_norm(norm='histeq'))
 
     def make_image(self, renderer, magnification=1.0,
                    unsampled=False):
