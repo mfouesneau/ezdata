@@ -429,9 +429,15 @@ def to_vaex_file(ds, output, grouppath='/table/columns',
             group_name = construct_vaex_path(name).split('/')
             group_ = '/'.join(group_name[:-1])
             name_ = group_name[-1]
+            
+            try:
+                # Pandas datatypes are not compatible with h5py
+                dtype_ = dtype.numpy_dtype
+            except AttributeError:
+                dtype_ = dtype
 
             outputfile.create_group(group_)\
-                      .create_dataset(name_, shape=(length,), dtype=dtype)
+                      .create_dataset(name_, shape=(length,), dtype=dtype_)
 
         # copy the data over
         index = 0
