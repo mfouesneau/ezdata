@@ -7,7 +7,7 @@ def readme():
 
 
 setup(name="ezdata",
-      version=0.98,
+      version=0.99,
       description="A Sandbox for simplistic column based data framework",
       long_description=readme(),
       author="Morgan Fouesneau",
