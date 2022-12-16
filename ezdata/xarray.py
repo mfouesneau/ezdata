@@ -203,3 +203,44 @@ def df_groupby_bins(
             .agg(agg)\
             .reindex(pd.MultiIndex.from_product(coords, names=binby))
     return r.to_xarray()
+
+
+def centers_to_bin_edges(x):
+    """ Return bin egdes from centers given by x """
+    x = np.array(x)
+    dx = np.diff(x)
+    return np.hstack((x[:-1] - 0.5 * dx, x[-1] + 0.5 * dx[-1]))
+
+
+def xr_histogram_like(ref_xr: Union[xarray.Dataset, xarray.DataArray], 
+                      binby: Sequence[str] = None, 
+                      **values) -> xarray.DataArray:
+    """ Make an histogram copying the bins from a reference dataset 
+
+    Parameters
+    ----------
+    ref_xr: Union[xarray.Dataset, xarray.DataArray]
+        a reference dataset or dataarray to mimic
+
+    binby: Sequence[str]
+        names of the binning axes
+    
+    values: Dict
+        values to consider to bin. Names should match the reference dimensions.
+
+    returns
+    -------
+    binned_data: xarray.DataArray
+        The binned data as a DataArray object
+        It contains all the information as a labeled array
+    """
+    if binby is None:
+        binby = [k for k in list(ref_xr.coords.keys()) 
+                 if k in values]
+    kwargs = {k: v for k, v in values.items() if k not in binby}
+    
+    coords = {k:ref_xr.coords[k].values for k in binby}
+    bins = [centers_to_bin_edges(coords[k]) for k in binby]
+
+    X_ = np.array([values[k] for k in binby]).T
+    return xr_histogram(X_, bins=bins, binby=binby, **kwargs)
