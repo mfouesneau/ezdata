@@ -158,8 +158,15 @@ def read(fname: str, **kwargs) -> pd.DataFrame:
                      comment=comment, 
                      converters=converters,
                      **kwargs)
-    df.attrs.update(header.get('meta', {}))
-    return df
+      
+    # compatibility with ecsv format
+    try:
+      df.attrs.update(header.get('meta', {}))
+      return df
+    except AttributeError:  # df is an iterator
+      for chunk in df:
+         chunk.attrs.update(header.get('meta', {}))
+         yield chunk
 
 
 def generate_header(df: pd.DataFrame, **meta) -> str:
