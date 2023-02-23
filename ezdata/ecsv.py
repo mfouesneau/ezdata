@@ -163,10 +163,13 @@ def read(fname: str, **kwargs) -> pd.DataFrame:
     try:
       df.attrs.update(header.get('meta', {}))
       return df
-    except AttributeError:  # df is an iterator
-      for chunk in df:
-         chunk.attrs.update(header.get('meta', {}))
-         yield chunk
+    except AttributeError as e:  # df is an iterator
+      print(e)
+      def _df_iter(df, header):
+        for chunk in df:
+            chunk.attrs.update(header.get('meta', {}))
+            yield chunk
+      return _df_iter(df, header)
 
 
 def generate_header(df: pd.DataFrame, **meta) -> str:
