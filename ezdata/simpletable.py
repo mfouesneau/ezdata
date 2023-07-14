@@ -57,6 +57,12 @@ except ImportError:
         pyfits = None
 except Exception:
     pyfits = None
+    
+def isinstance_FITS_rec(object):
+    """ safe instance testing """
+    if pyfits is None:
+        return False
+    return isinstance(fname, pyfits.FITS_rec)
 
 try:
     import tables
@@ -1562,7 +1568,7 @@ class SimpleTable(object):
         elif type(fname) == np.ndarray:
             self.data = fname
             self.header = {}
-        elif type(fname) == pyfits.FITS_rec:
+        elif isinstance_FITS_rec(fname):
             self.data = np.array(fname)
             self.header = {}
         elif isinstance(fname, SimpleTable):
