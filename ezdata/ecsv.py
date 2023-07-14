@@ -196,7 +196,7 @@ def generate_header(df: pd.DataFrame, **meta) -> str:
         # Check if vectors and add subtype if necessary.
         if dt == 'object':
             val0 = df[name][0]
-            if val0.shape:
+            if np.shape(val0):
                 dtype['subtype'] = '{0:s}[null]'.format(str(val0.dtype))
         dtypes.append(dtype)
     meta_ = df.attrs.copy()
