@@ -53,7 +53,7 @@ try:
 except ImportError:
     try:
         import pyfits
-    except ImportError
+    except ImportError:
         pyfits = None
 except Exception:
     pyfits = None
