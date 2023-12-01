@@ -58,11 +58,11 @@ except ImportError:
 except Exception:
     pyfits = None
     
-def isinstance_FITS_rec(object):
+def isinstance_FITS_rec(obj):
     """ safe instance testing """
     if pyfits is None:
         return False
-    return isinstance(fname, pyfits.FITS_rec)
+    return isinstance(obj, pyfits.FITS_rec)
 
 try:
     import tables
