@@ -1565,7 +1565,7 @@ class SimpleTable(object):
                 self._desc.update(desc)
             else:
                 raise Exception('Format {0:s} not handled'.format(extension))
-        elif type(fname) == np.ndarray:
+        elif isinstance(fname, np.ndarray):
             self.data = fname
             self.header = {}
         elif isinstance_FITS_rec(fname):
