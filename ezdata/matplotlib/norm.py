@@ -125,3 +125,24 @@ class Power(DummyNorm):
     def _inverse_transform(self, value, out=None):
         delta = np.power(self.vmax, self.inv_power_) - np.power(self.vmin, self.inv_power_)
         return np.power(delta * value + np.power(self.vmin, self.inv_power_))
+
+
+class PercentileNormalize(DummyNorm):
+    """ Using vmin, vmax percentiles as normalization. """ 
+    def __init__(self, data, vmin=None, vmax=None, clip=False):
+        vmin, vmax = np.nanpercentile(data, [vmin, vmax])
+        super().__init__(vmin, vmax, clip)
+        self.data = data
+
+class StdNormalize(DummyNorm):
+    """ Using mean and standard deviation as normalization 
+    use vmin, vmax to clip the range and nstd to set how many standard deviations to consider 
+    """ 
+    def __init__(self, data, vmin=None, vmax=None, clip=False, nstd=3.0):
+        self.data = data
+        mean = np.nanmean(self.data)
+        std = np.nanstd(self.data)
+        a, b = mean - nstd * std, mean + nstd * std 
+        vmin = max(a, vmin or a)
+        vmax = min(b, vmax or b)
+        super().__init__(vmin, vmax, clip)
