@@ -225,8 +225,10 @@ def df_groupby_bins(
 def centers_to_bin_edges(x):
     """Return bin egdes from centers given by x"""
     x = np.array(x)
-    dx = np.diff(x)
-    return np.hstack((x[:-1] - 0.5 * dx, x[-1] + 0.5 * dx[-1]))
+    return np.hstack(
+        [x[0] - (x[1] - x[0]) / 2.0,
+        (x[1:] + x[:-1]) / 2,
+        x[-1] + (x[-1] - x[-2]) / 2,])
 
 
 def xr_histogram_like(
