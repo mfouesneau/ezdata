@@ -6,6 +6,7 @@ import numpy as np
 
 import plotly
 import plotly.graph_objects
+from plotly.exceptions import PlotlyKeyError
 
 
 def iter_coloraxis_names(max: int = 100) -> Generator:
@@ -74,9 +75,31 @@ def separate_colorbars(
     """
     fig = fig.update_layout(coloraxis=dict(showscale=True))
     for num, trace in enumerate(fig.data, 1):
-        trace.update({"coloraxis": f"coloraxis{num}" if num > 1 else "coloraxis"})
+        try:
+            trace.update({"coloraxis": f"coloraxis{num}" if num > 1 else "coloraxis"})
+        except ValueError:
+            trace.update({"marker_coloraxis": f"coloraxis{num}" if num > 1 else "coloraxis"})
     fig = reposition_colorbars(fig, xnorm=xnorm, ynorm=ynorm, **kwargs)
     return fig
+
+
+def get_colorbars(fig: plotly.graph_objects.Figure) -> Generator:
+    """Get the colorbars of a figure
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        A figure object
+    Returns
+    -------
+    list
+        List of colorbar dictionaries
+    """
+    for trace in fig.data:
+        try:
+            cb = fig.layout[trace['coloraxis']]
+        except PlotlyKeyError:
+            cb = fig.layout[trace['marker_coloraxis']]
+        yield cb
 
 
 def logscale(
