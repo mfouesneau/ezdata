@@ -37,12 +37,12 @@ def reposition_colorbars(
         The updated figure
     """
     grid_ref = fig._validate_get_grid_ref()
-    nrows = len(grid_ref)
-    ncols = len(grid_ref[0])
+    ncols = len(grid_ref)
+    nrows = len(grid_ref[0])
 
     # flat list of axes
     axes = [
-        fig.get_subplot(i, j) for j in range(1, ncols + 1) for i in range(1, nrows + 1)
+        fig.get_subplot(j, i) for j in range(1, ncols + 1) for i in range(1, nrows + 1)
     ]
 
     updates = {}
