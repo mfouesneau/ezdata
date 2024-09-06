@@ -7,6 +7,7 @@ import numpy as np
 import plotly
 import plotly.graph_objects
 from plotly.exceptions import PlotlyKeyError
+from plotly._subplots import SubplotXY
 
 
 def iter_coloraxis_names(max: int = 100) -> Generator:
@@ -36,19 +37,16 @@ def reposition_colorbars(
     plotly.graph_objects.Figure
         The updated figure
     """
-    grid_ref = fig._validate_get_grid_ref()
-    ncols = len(grid_ref)
-    nrows = len(grid_ref[0])
-
-    # flat list of axes
-    axes = [
-        fig.get_subplot(j, i) for j in range(1, ncols + 1) for i in range(1, nrows + 1)
-    ]
-
     updates = {}
-    for ax, coloraxis in zip(axes, iter_coloraxis_names()):
-        xpos = ax.xaxis.domain[0] + (ax.xaxis.domain[1] - ax.xaxis.domain[0]) * xnorm
-        ypos = ax.yaxis.domain[0] + (ax.yaxis.domain[1] - ax.yaxis.domain[0]) * ynorm
+    for trace in fig.data:
+        xaxis = fig.layout[trace.xaxis.replace('x', 'xaxis')]
+        yaxis = fig.layout[trace.yaxis.replace('y', 'yaxis')]
+        try:
+            coloraxis = trace['coloraxis']
+        except PlotlyKeyError:
+            coloraxis = trace['marker_coloraxis']
+        xpos = xaxis.domain[0] + (xaxis.domain[1] - xaxis.domain[0]) * xnorm
+        ypos = yaxis.domain[0] + (yaxis.domain[1] - yaxis.domain[0]) * ynorm
         updates[coloraxis] = {"colorbar": {"x": xpos, "y": ypos, **kwargs}}
     return fig.update_layout(**updates)
 
