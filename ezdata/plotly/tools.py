@@ -5,7 +5,7 @@ from typing import Generator, List, Optional
 import numpy as np
 import plotly
 import plotly.graph_objects
-from plotly.tools import make_subplots
+from plotly.subplots import make_subplots
 from plotly.exceptions import PlotlyKeyError
 
 
