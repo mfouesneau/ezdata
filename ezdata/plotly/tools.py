@@ -201,6 +201,103 @@ def logscale(
     return trace.figure
 
 
+def update_annotation_position(
+    fig: plotly.graph_objs._figure.Figure,
+    xaxis_name: str,
+    yaxis_name: str,
+    annotation: plotly.graph_objs.layout.Annotation,
+) -> plotly.graph_objs.layout.Annotation:
+    """
+    Reset the position of an annotation to match the new subplot layout.
+
+    Parameters:
+    fig (plotly.graph_objs._figure.Figure): The figure object containing the layout.
+    xaxis_name (str): The name of the x-axis (e.g., 'xaxis', 'xaxis2').
+    yaxis_name (str): The name of the y-axis (e.g., 'yaxis', 'yaxis2').
+    annotation (plotly.graph_objs.layout.Annotation): The annotation object to be updated.
+
+    Returns:
+    plotly.graph_objs.layout.Annotation: A new annotation object with updated position.
+    """
+    xref = annotation["xref"]
+    yref = annotation["yref"]
+    xaxis = fig.layout[xaxis_name]
+    yaxis = fig.layout[yaxis_name]
+    updates = {}
+    if xref == "paper":
+        updates["x"] = (
+            xaxis.domain[0] + (xaxis.domain[1] - xaxis.domain[0]) * annotation["x"]
+        )
+    else:
+        updates["x"] = annotation["x"]
+        updates["xref"] = xaxis_name.replace("axis", "")  # x, x2, x3, ...
+    if yref == "paper":
+        updates["y"] = (
+            yaxis.domain[0] + (yaxis.domain[1] - yaxis.domain[0]) * annotation["y"]
+        )
+    else:
+        updates["y"] = annotation["y"]
+        updates["yref"] = yaxis_name.replace("axis", "")  # y, y2, y3, ...
+    new_annotation = plotly.graph_objects.layout.Annotation(annotation._props.copy())
+    new_annotation.update(updates)
+    return new_annotation
+
+
+def update_colorbar_position(
+    fig: plotly.graph_objs._figure.Figure,
+    xaxis_name: str,
+    yaxis_name: str,
+    coloraxis_name: str,
+    colorbar: plotly.graph_objs.layout.ColorBar,
+    xnorm: float = 1.05,
+    ynorm: float = 0.5,
+    **cbar_defaults,
+) -> dict:
+    """
+    Reset position of colorbars to match the new subplot layout.
+
+    Parameters:
+    fig (plotly.graph_objs._figure.Figure): The figure object containing the subplots.
+    xaxis_name (str): The name of the x-axis in the subplot layout.
+    yaxis_name (str): The name of the y-axis in the subplot layout.
+    coloraxis_name (str): The name of the color axis in the subplot layout.
+    colorbar (plotly.graph_objs.layout.ColorBar): The colorbar object to be repositioned.
+    xnorm (float, optional): Normalized position along the x-axis domain. Default is 1.05.
+    ynorm (float, optional): Normalized position along the y-axis domain. Default is 0.5.
+    **cbar_defaults: Additional keyword arguments to update the colorbar properties.
+
+    Returns:
+    dict: A dictionary containing the updated color axis properties with the new colorbar position.
+    """
+    updates = {}
+    xaxis, yaxis = fig.layout[xaxis_name], fig.layout[yaxis_name]
+    xpos = xaxis.domain[0] + (xaxis.domain[1] - xaxis.domain[0]) * xnorm
+    ypos = yaxis.domain[0] + (yaxis.domain[1] - yaxis.domain[0]) * ynorm
+    updates[coloraxis_name] = colorbar._props.copy()
+    updates[coloraxis_name].update(
+        {"colorbar": {"x": xpos, "y": ypos, **cbar_defaults}}
+    )
+    return updates
+
+
+def copy_axis(new_axis_name: str, axis: plotly.graph_objects.layout.XAxis) -> plotly.graph_objects.Layout:
+    """
+    Copy axis properties to a new axis name.
+
+    Parameters:
+    new_axis_name (str): The name of the new axis to which properties will be copied.
+    axis (plotly.graph_objects.layout.XAxis): The axis object from which properties will be copied.
+
+    Returns:
+    plotly.graph_objects.Layout: A Layout object with the new axis properties.
+    """
+    updates = plotly.graph_objects.Layout()
+    # axis updates
+    ignore = ["domain", "anchor", "matches"]
+    updates[new_axis_name] = {k: v for k, v in axis._props.items() if k not in ignore}
+    return updates
+
+
 def combine_figures(
     panels: List[List[plotly.graph_objects.Figure]], subplot_kw={}, cbar_kw={}
 ) -> plotly.graph_objects.Figure:
@@ -252,11 +349,14 @@ def combine_figures(
             if panel is None:
                 continue
             for trace in panel.data:
+                # add trace
+                mf.add_trace(trace, row=i + 1, col=j + 1)
+                new_trace = mf.data[-1]
+
+                # retrieve coloraxis if any
                 new_coloraxis = (
                     f"coloraxis{i * ncols + j + 1}" if counter > 1 else "coloraxis"
                 )
-                mf.add_trace(trace, row=i + 1, col=j + 1)
-                new_trace = mf.data[-1]
                 try:  # figure marker or normal coloraxis
                     orig_coloraxis = trace["coloraxis"]
                     new_trace["coloraxis"] = new_coloraxis
@@ -267,34 +367,36 @@ def combine_figures(
                 updates = plotly.graph_objects.Layout()
 
                 # axis updates
-                ignore = ["domain", "anchor", "matches"]
                 new_xaxis = f"xaxis{counter}" if counter > 1 else "xaxis"
-                updates[new_xaxis] = {
-                    k: v
-                    for k, v in panel.layout["xaxis"]._props.items()
-                    if k not in ignore
-                }
+                updates.update(copy_axis(new_xaxis, panel.layout["xaxis"]))
+
                 new_yaxis = f"yaxis{counter}" if counter > 1 else "yaxis"
-                updates[new_yaxis] = {
-                    k: v
-                    for k, v in panel.layout["yaxis"]._props.items()
-                    if k not in ignore
-                }
+                updates.update(copy_axis(new_yaxis, panel.layout["yaxis"]))
 
                 # coloraxis updates
-                xaxis, yaxis = mf.layout[new_xaxis], mf.layout[new_yaxis]
-                xpos = (
-                    xaxis.domain[0] + (xaxis.domain[1] - xaxis.domain[0]) * cbar_xnorm
-                )
-                ypos = (
-                    yaxis.domain[0] + (yaxis.domain[1] - yaxis.domain[0]) * cbar_ynorm
-                )
-                updates[new_coloraxis] = panel.layout[orig_coloraxis]._props.copy()
-                updates[new_coloraxis].update(
-                    {"colorbar": {"x": xpos, "y": ypos, **cbar_defaults}}
-                )
-
+                try:
+                    updates.update(
+                        update_colorbar_position(
+                            mf,
+                            new_xaxis,
+                            new_yaxis,
+                            new_coloraxis,
+                            panel.layout[orig_coloraxis],
+                            xnorm=cbar_xnorm,
+                            ynorm=cbar_ynorm,
+                            **cbar_defaults,
+                        )
+                    )
+                except TypeError:
+                    pass  # noqa  (no coloraxis with this trace)
                 mf.update_layout(updates)
+
+            # annotations
+            for annotation in panel.layout.annotations:
+                new_annotation = update_annotation_position(
+                    mf, new_xaxis, new_yaxis, annotation
+                )
+                mf.add_annotation(new_annotation)
 
     # shared axes
     if subplot_sharedx:
