@@ -1,13 +1,11 @@
 """Plotly tools"""
 
-from typing import Generator, Optional
+from typing import Generator, List, Optional
 
 import numpy as np
-
 import plotly
 import plotly.graph_objects
 from plotly.exceptions import PlotlyKeyError
-from plotly._subplots import SubplotXY
 
 
 def iter_coloraxis_names(max: int = 100) -> Generator:
@@ -39,12 +37,12 @@ def reposition_colorbars(
     """
     updates = {}
     for trace in fig.data:
-        xaxis = fig.layout[trace.xaxis.replace('x', 'xaxis')]
-        yaxis = fig.layout[trace.yaxis.replace('y', 'yaxis')]
+        xaxis = fig.layout[trace.xaxis.replace("x", "xaxis")]
+        yaxis = fig.layout[trace.yaxis.replace("y", "yaxis")]
         try:
-            coloraxis = trace['coloraxis']
+            coloraxis = trace["coloraxis"]
         except PlotlyKeyError:
-            coloraxis = trace['marker_coloraxis']
+            coloraxis = trace["marker_coloraxis"]
         xpos = xaxis.domain[0] + (xaxis.domain[1] - xaxis.domain[0]) * xnorm
         ypos = yaxis.domain[0] + (yaxis.domain[1] - yaxis.domain[0]) * ynorm
         updates[coloraxis] = {"colorbar": {"x": xpos, "y": ypos, **kwargs}}
@@ -76,7 +74,9 @@ def separate_colorbars(
         try:
             trace.update({"coloraxis": f"coloraxis{num}" if num > 1 else "coloraxis"})
         except ValueError:
-            trace.update({"marker_coloraxis": f"coloraxis{num}" if num > 1 else "coloraxis"})
+            trace.update(
+                {"marker_coloraxis": f"coloraxis{num}" if num > 1 else "coloraxis"}
+            )
     fig = reposition_colorbars(fig, xnorm=xnorm, ynorm=ynorm, **kwargs)
     return fig
 
@@ -94,9 +94,9 @@ def get_colorbars(fig: plotly.graph_objects.Figure) -> Generator:
     """
     for trace in fig.data:
         try:
-            cb = fig.layout[trace['coloraxis']]
+            cb = fig.layout[trace["coloraxis"]]
         except PlotlyKeyError:
-            cb = fig.layout[trace['marker_coloraxis']]
+            cb = fig.layout[trace["marker_coloraxis"]]
         yield cb
 
 
@@ -198,3 +198,113 @@ def logscale(
     trace.figure.update_layout({trace.coloraxis: props})
 
     return trace.figure
+
+
+def combine_figures(
+    panels: List[List[plotly.graph_objects.Figure]], subplot_kw={}, cbar_kw={}
+) -> plotly.graph_objects.Figure:
+    """
+    Combine multiple Plotly figures into a single figure with subplots.
+
+    Parameters:
+    -----------
+    panels : List[List[plotly.graph_objects.Figure]]
+        A 2D list of Plotly figures to be combined into subplots.
+    subplot_kw : dict, optional
+        Keyword arguments for `make_subplots` function to customize subplot layout.
+    cbar_kw : dict, optional
+        Keyword arguments to customize the colorbar layout.
+
+    Returns:
+    --------
+    plotly.graph_objects.Figure
+        A Plotly figure object containing the combined subplots.
+
+    Notes:
+    ------
+    - The function supports shared x-axes and y-axes through `subplot_kw`.
+    - Colorbars are adjusted and positioned based on `cbar_kw`
+    - The function handles both normal and marker color axes.
+    """
+
+    nrows = len(panels)
+    ncols = len(panels[0])
+
+    subplot_sharedx = subplot_kw.pop("shared_xaxes", False)
+    subplot_sharedy = subplot_kw.pop("shared_yaxes", False)
+
+    mf = make_subplots(rows=nrows, cols=ncols, **subplot_kw)
+
+    cbar_defaults = dict(
+        xnorm=1.05, ynorm=0.5, len=1.0 / nrows, title_side="right", thickness=20
+    )
+    cbar_defaults.update(cbar_kw)
+
+    cbar_xnorm = cbar_defaults.pop("xnorm", 1.05)
+    cbar_ynorm = cbar_defaults.pop("ynorm", 0.5)
+
+    counter = 0
+    for i in range(nrows):
+        for j in range(ncols):
+            panel = panels[i][j]
+            counter += 1
+            if panel is None:
+                continue
+            for trace in panel.data:
+                new_coloraxis = (
+                    f"coloraxis{i * ncols + j + 1}" if counter > 1 else "coloraxis"
+                )
+                mf.add_trace(trace, row=i + 1, col=j + 1)
+                new_trace = mf.data[-1]
+                try:  # figure marker or normal coloraxis
+                    orig_coloraxis = trace["coloraxis"]
+                    new_trace["coloraxis"] = new_coloraxis
+                except KeyError:
+                    orig_coloraxis = trace["marker_coloraxis"]
+                    new_trace["marker_coloraxis"] = new_coloraxis
+
+                updates = plotly.graph_objects.Layout()
+
+                # axis updates
+                ignore = ["domain", "anchor", "matches"]
+                new_xaxis = f"xaxis{counter}" if counter > 1 else "xaxis"
+                updates[new_xaxis] = {
+                    k: v
+                    for k, v in panel.layout["xaxis"]._props.items()
+                    if k not in ignore
+                }
+                new_yaxis = f"yaxis{counter}" if counter > 1 else "yaxis"
+                updates[new_yaxis] = {
+                    k: v
+                    for k, v in panel.layout["yaxis"]._props.items()
+                    if k not in ignore
+                }
+
+                # coloraxis updates
+                xaxis, yaxis = mf.layout[new_xaxis], mf.layout[new_yaxis]
+                xpos = (
+                    xaxis.domain[0] + (xaxis.domain[1] - xaxis.domain[0]) * cbar_xnorm
+                )
+                ypos = (
+                    yaxis.domain[0] + (yaxis.domain[1] - yaxis.domain[0]) * cbar_ynorm
+                )
+                updates[new_coloraxis] = panel.layout[orig_coloraxis]._props.copy()
+                updates[new_coloraxis].update(
+                    {"colorbar": {"x": xpos, "y": ypos, **cbar_defaults}}
+                )
+
+                mf.update_layout(updates)
+
+    # shared axes
+    if subplot_sharedx:
+        for row in range(nrows):
+            refx = "x" if subplot_sharedx == "all" else f"x{row + 1}"
+            for col in range(ncols):
+                mf.update_xaxes(matches=refx, row=row + 1, col=col + 1)
+    if subplot_sharedy:
+        for row in range(nrows):
+            refy = "y" if subplot_sharedx == "all" else f"y{row + 1}"
+            for col in range(ncols):
+                mf.update_yaxes(matches=refy, row=row + 1, col=col + 1)
+
+    return mf
