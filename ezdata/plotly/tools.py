@@ -248,7 +248,7 @@ def update_colorbar_position(
     xaxis_name: str,
     yaxis_name: str,
     coloraxis_name: str,
-    colorbar: plotly.graph_objs.layout.ColorBar,
+    colorbar: plotly.graph_objs.layout.Coloraxis,
     xnorm: float = 1.05,
     ynorm: float = 0.5,
     **cbar_defaults,
@@ -261,7 +261,7 @@ def update_colorbar_position(
     xaxis_name (str): The name of the x-axis in the subplot layout.
     yaxis_name (str): The name of the y-axis in the subplot layout.
     coloraxis_name (str): The name of the color axis in the subplot layout.
-    colorbar (plotly.graph_objs.layout.ColorBar): The colorbar object to be repositioned.
+    colorbar (plotly.graph_objs.layout.Coloraxis): The colorbar object to be repositioned.
     xnorm (float, optional): Normalized position along the x-axis domain. Default is 1.05.
     ynorm (float, optional): Normalized position along the y-axis domain. Default is 0.5.
     **cbar_defaults: Additional keyword arguments to update the colorbar properties.
