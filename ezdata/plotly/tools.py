@@ -293,8 +293,9 @@ def copy_axis(new_axis_name: str, axis: plotly.graph_objects.layout.XAxis) -> pl
     """
     updates = plotly.graph_objects.Layout()
     # axis updates
-    ignore = ["domain", "anchor", "matches"]
-    updates[new_axis_name] = {k: v for k, v in axis._props.items() if k not in ignore}
+    if axis._props: 
+        ignore = ["domain", "anchor", "matches"]
+        updates[new_axis_name] = {k: v for k, v in axis._props.items() if k not in ignore}
     return updates
 
 
