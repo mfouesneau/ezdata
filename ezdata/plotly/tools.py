@@ -5,6 +5,7 @@ from typing import Generator, List, Optional
 import numpy as np
 import plotly
 import plotly.graph_objects
+import plotly.express as px
 from plotly.subplots import make_subplots
 from plotly.exceptions import PlotlyKeyError
 
@@ -412,3 +413,58 @@ def combine_figures(
                 mf.update_yaxes(matches=refy, row=row + 1, col=col + 1)
 
     return mf
+
+
+def get_color_fn(quant, cmap: str, sampling: int = 255, **colorbar):
+    """
+    Generates a function to map quantitative values to colors based on a given colormap,
+    and creates a dummy trace for displaying a colorbar in a plot.
+
+    Parameters:
+    -----------
+    quant : array-like
+        The quantitative data to be mapped to colors.
+    cmap : str
+        The name of the colormap to use.
+    sampling : int, optional
+        The number of samples to take from the colormap. Default is 255.
+    **colorbar : dict, optional
+        Additional keyword arguments to customize the colorbar.
+
+    Returns:
+    --------
+    color_fn : function
+        A function that takes a single value and returns the corresponding color from the colormap.
+    dummy_trace : plotly.graph_objs.Scatter
+        A dummy scatter trace used to display the colorbar in a plot.
+    """
+    seq = px.colors.sample_colorscale(cmap, sampling)
+
+    minval = np.nanmin(quant)
+    maxval = np.nanmax(quant)
+    diffval = maxval - minval
+
+    sampling = len(seq) - 1
+
+    def color_fn(x):
+        return seq[int((x - minval) / diffval * sampling)]
+
+    cb_defaults = dict(thickness=20)
+    cb_defaults.update(colorbar)
+
+    # generate a dummy trace to show the colorbar
+    dummy_trace = plotly.graph_objects.Scatter(
+        x=[minval, maxval],
+        y=[minval, maxval],
+        mode="markers",
+        marker=dict(
+            size=0,
+            color=[minval, maxval],
+            colorscale=cmap,
+            colorbar=colorbar,
+            showscale=True,
+        ),
+        hoverinfo="none",
+        showlegend=False,
+    )
+    return color_fn, dummy_trace
